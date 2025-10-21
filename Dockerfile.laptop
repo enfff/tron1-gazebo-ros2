@@ -1,0 +1,44 @@
+# Use ROS2 jazzy base image
+FROM osrf/ros:jazzy-desktop
+
+# Set envjazzyment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ROBOT_TYPE=WF_TRON1A
+
+# Install additional dependencies not in base image
+RUN apt-get update && apt-get install -y \
+    # ros-jazzy-gazebo-ros-pkgs \
+    # ros-jazzy-gazebo-ros2-control \
+    # ros-jazzy-ros2-control \
+    # ros-jazzy-ros2-controllers \
+    # ros-jazzy-xacro \
+    libmatio-dev \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create workspace directory
+WORKDIR /root/limx_ws/src
+
+# Clone required repositories
+RUN git clone https://github.com/limxdynamics/limxsdk-lowlevel.git && \
+    git clone https://github.com/limxdynamics/robot-description.git
+
+# Build the workspace
+WORKDIR /root/limx_ws
+RUN /bin/bash -c "source /opt/ros/jazzy/setup.bash && \
+    colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release"
+
+# Set up entrypoint to source ROS2 and workspace
+RUN echo '#!/bin/bash\n\
+set -e\n\
+source /opt/ros/jazzy/setup.bash\n\
+source /root/limx_ws/install/setup.bash\n\
+exec "$@"' > /ros_entrypoint.sh && \
+    chmod +x /ros_entrypoint.sh
+
+# Also add sourcing to .bashrc for interactive shells
+RUN echo 'source /opt/ros/jazzy/setup.bash' >> /root/.bashrc && \
+    echo 'source /root/limx_ws/install/setup.bash' >> /root/.bashrc
+
+ENTRYPOINT ["/ros_entrypoint.sh"]
+CMD ["bash"]

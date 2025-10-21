@@ -23,10 +23,15 @@ graph TD
 ## Laptop
 
 ```bash
-docker build -t struzzo:iron .
+docker build -f Dockerfile.laptop -t tron1-sdk:laptop .
 xhost +local:docker
-docker compose -f docker-compose.laptop.yml up
+docker compose -f docker-compose.laptop.yml up -d
+docker exec -it tron1-sdk bash
 ```
+
+After closing for the first time, you can execute the container interactively with
+
+    docker exec -it tron1-sdk bash 
 
 ## Jetson
 

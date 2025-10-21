@@ -1,9 +1,14 @@
 services:
-  gazebo:
-    image: struzzo:iron
+  tron1:
+    image: tron1-sdk:laptop
+    container_name: tron1-sdk
+    hostname: ${HOSTNAME}
+    stdin_open: true
+    tty: true
     environment:
       - DISPLAY=${DISPLAY}
       - QT_X11_NO_MITSHM=1
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
-    command: ros2 launch pointfoot_gazebo empty_world.launch.py
+      - ./nodes:/root/limx_ws/src/nodes
+    command: bash
