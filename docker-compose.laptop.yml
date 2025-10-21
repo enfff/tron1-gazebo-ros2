@@ -3,6 +3,7 @@ services:
     image: tron1-sdk:laptop
     container_name: tron1-sdk
     hostname: ${HOSTNAME}
+    network_mode: host
     stdin_open: true
     tty: true
     environment:
