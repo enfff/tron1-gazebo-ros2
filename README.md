@@ -1,5 +1,25 @@
 # TRON-1 "Struzzo"
 
+Graphical representation of the connections involved
+
+``` mermaid
+graph TD
+
+    subgraph "LAN Network"
+        Tron1["Tron 1"]
+        Jetson["Jetson"]
+        Tron1 --- Jetson
+    end
+
+    subgraph "Wi-Fi area42network"
+        Router["Router"]
+        Router --- Jetson
+        Router --- Laptop1["Laptop 1"]
+        Router --- Laptop2["Laptop 2"]
+        Router --- Laptop3["Laptop 3"]
+    end
+```
+
 ## Laptop
 
 ```bash
