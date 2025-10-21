@@ -38,21 +38,15 @@ source /root/limx_ws/install/setup.bash\n\
 exec "$@"' > /ros_entrypoint.sh && \
     chmod +x /ros_entrypoint.sh
 
-# --- Gazebo GUI instructions ---
-# To run Gazebo with GUI from this container, use:
+# --- Gazebo GUI quick reference ---
+# Laptop without NVIDIA GPU:
 #   xhost +local:docker
-#   docker run -it --rm \
-#     -e DISPLAY=$DISPLAY \
-#     -v /tmp/.X11-unix:/tmp/.X11-unix \
-#     struzzo:iron ros2 launch pointfoot_gazebo empty_world.launch.py
+#   docker compose -f docker-compose.laptop.yml up
 #
-# For NVIDIA GPU acceleration, add:
-#   --gpus all \
-#   --env NVIDIA_DRIVER_CAPABILITIES=all \
-#   --env QT_X11_NO_MITSHM=1
-#
-# If you see permission errors, run:
-#   xhost +local:root
+# Jetson (headless, streamed to laptop via ssh -X):
+#   ssh -X <jetson-user>@<jetson-host>
+#   export XAUTHORITY=$HOME/.Xauthority
+#   docker compose -f docker-compose.jetson.yml up
 
 ENTRYPOINT ["/ros_entrypoint.sh"]
 CMD ["bash"]
