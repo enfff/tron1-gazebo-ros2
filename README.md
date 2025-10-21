@@ -1,19 +1,14 @@
 # TRON-1 "Struzzo"
 
-## Build
+## Laptop
 
 ```bash
 docker build -t struzzo:iron .
-```
-
-## Laptop (local development)
-
-```bash
 xhost +local:docker
 docker compose -f docker-compose.laptop.yml up
 ```
 
-## Jetson (deploy)
+## Jetson
 
 On your laptop:
 
@@ -21,9 +16,11 @@ On your laptop:
 ssh -X struzzo@struzzo
 ```
 
-On the Jetson shell created above:
+On the Jetson:
 
 ```bash
+docker build -f Dockerfile.jetson -t struzzo:jetson .
+echo $DISPLAY
 export XAUTHORITY=$HOME/.Xauthority
-docker compose -f docker-compose.jetson.yml up
+docker compose -f docker-compose.jetson.yml up --build
 ```

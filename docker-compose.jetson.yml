@@ -1,9 +1,12 @@
-version: '3.8'
 services:
   gazebo:
-    image: struzzo:iron
+    image: struzzo:jetson
+    build:
+      context: .
+      dockerfile: Dockerfile.jetson
     runtime: nvidia
     network_mode: host
+    # Ensure DISPLAY is set (e.g. via ssh -X) before running compose
     environment:
       - DISPLAY=${DISPLAY}
       - XAUTHORITY=/root/.Xauthority
