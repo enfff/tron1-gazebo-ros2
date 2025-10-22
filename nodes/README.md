@@ -9,10 +9,11 @@ This package wraps the sensor data provided by the SDK into ROS 2 publisher node
 | data | ros2 message type | topic |
 | --- | --- | --- | 
 | IMU (orientation, angular_velocity, linear_acceleration) | [sensor_msgs/msg/imu.msg](https://docs.ros2.org/foxy/api/sensor_msgs/msg/Imu.html) | `/imu` |
-|  |  |  |
+| Odometry (pose, twist) | [nav_msgs/msg/Odometry.msg](https://docs.ros2.org/foxy/api/nav_msgs/msg/Odometry.html) | `/odom` |
 |  |  |  |
 
 
 ## How to Run
 
     ros2 run sdk_wrap imu_publisher
+    ros2 run sdk_wrap odom_publisher

@@ -12,6 +12,9 @@ RUN apt-get update && apt-get install -y \
     # ros-jazzy-ros2-control \
     # ros-jazzy-ros2-controllers \
     # ros-jazzy-xacro \
+    libboost-all-dev \
+    libwebsocketpp-dev \
+    nlohmann-json3-dev \
     libmatio-dev \
     git \
     && rm -rf /var/lib/apt/lists/*
