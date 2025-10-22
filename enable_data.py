@@ -3,8 +3,7 @@ import uuid
 import time
 import websocket
 
-# Replace this ACCID value with your robot's actual serial number (SN)
-ACCID = "PF_TRON1A_042"
+ACCID = "WF_TRON1A_042"
 
 # WebSocket client instance
 ws_client = None
