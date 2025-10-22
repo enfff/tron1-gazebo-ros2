@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(imu_publisher)
+project(sdk_wrap)
 
 # Default to C++17
 if(NOT CMAKE_CXX_STANDARD)
@@ -16,14 +16,19 @@ include_directories(
   ${limxsdk_lowlevel_INCLUDE_DIRS}
 )
 
-add_executable(imu_publisher_node src/imu_publisher_node.cpp)
-ament_target_dependencies(imu_publisher_node rclcpp sensor_msgs)
+#include_directories(
+#  /root/limx_ws/src/limxsdk-lowlevel/include
+#  /root/limx_ws/install/limxsdk_lowlevel/include
+#)
+
+add_executable(imu_publisher src/imu_publisher_node.cpp)
+ament_target_dependencies(imu_publisher rclcpp sensor_msgs)
 # Link the limxsdk_lowlevel library exported by the package
 if(limxsdk_lowlevel_LIBRARIES)
-  target_link_libraries(imu_publisher_node ${limxsdk_lowlevel_LIBRARIES})
+  target_link_libraries(imu_publisher ${limxsdk_lowlevel_LIBRARIES})
 endif()
 
-install(TARGETS imu_publisher_node
+install(TARGETS imu_publisher
   DESTINATION lib/${PROJECT_NAME})
 
 ament_package()
