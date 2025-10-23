@@ -1,7 +1,7 @@
 import json
 import uuid
 import time
-import websocket
+import websocket_client
 
 ACCID = "WF_TRON1A_343"
 
@@ -78,7 +78,7 @@ def main():
     global ws_client
     
     # Create WebSocket client instance
-    ws_client = websocket.WebSocketApp(
+    ws_client = websocket_client.WebSocketApp(
         "ws://10.192.1.2:5000",  # WebSocket server URI
         on_open=on_open,
         on_message=on_message,

@@ -14,6 +14,7 @@ find_package(nav_msgs REQUIRED)
 find_package(limxsdk_lowlevel REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(OpenSSL REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 include_directories(
   ${limxsdk_lowlevel_INCLUDE_DIRS}
@@ -43,7 +44,13 @@ target_link_libraries(odom_publisher
   pthread
 )
 
-install(TARGETS imu_publisher odom_publisher
+add_executable(robot_command src/robot_command.cpp)
+ament_target_dependencies(robot_command rclcpp geometry_msgs)
+if(limxsdk_lowlevel_LIBRARIES)
+  target_link_libraries(robot_command ${limxsdk_lowlevel_LIBRARIES})
+endif()
+
+install(TARGETS imu_publisher odom_publisher robot_command
   DESTINATION lib/${PROJECT_NAME})
 
 ament_package()
