@@ -16,6 +16,19 @@ This package wraps the sensor data provided by the SDK into ROS 2 publisher node
 
 ## How to Run
 
+### Individual nodes:
     ros2 run sdk_wrap imu_publisher
     ros2 run sdk_wrap odom_publisher
     ros2 run sdk_wrap joint_state_publisher
+
+### Complete robot bringup (recommended):
+**Launches all nodes: IMU, odometry, joint states, command interface + robot_state_publisher for TF transforms**
+
+    ros2 launch sdk_wrap robot_bringup.launch.py
+
+This single command gives you:
+- `/imu` - IMU data for localization
+- `/odom` - Odometry data for navigation  
+- `/joint_states` - Joint states for visualization
+- `/cmd_vel` - Command interface for robot control
+- TF transforms for RViz visualization

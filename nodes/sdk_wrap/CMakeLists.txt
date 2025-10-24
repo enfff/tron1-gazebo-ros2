@@ -59,4 +59,7 @@ endif()
 install(TARGETS imu_publisher odom_publisher robot_command joint_state_publisher
   DESTINATION lib/${PROJECT_NAME})
 
+install(DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME})
+
 ament_package()
