@@ -1,7 +1,6 @@
 #include <memory>
 #include <string>
 #include <chrono>
-#include <thread>
 
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/twist.hpp"
@@ -22,6 +21,13 @@ public:
     }
     motor_num_ = pf_->getMotorNumber();
     cmd_ = std::make_shared<RobotCmd>(motor_num_);
+    // Default command: zero velocity in velocity mode
+    for (size_t i = 0; i < cmd_->mode.size(); ++i) {
+      cmd_->mode[i] = 1; // velocity mode
+      cmd_->dq[i] = 0.0;
+    }
+    cmd_->stamp = now_nanoseconds();
+    pf_->publishRobotCmd(*cmd_);
 
     // Subscribe to cmd_vel
     sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
@@ -31,37 +37,31 @@ public:
       }
     );
 
-    // Start periodic publisher thread
-    pub_thread_ = std::thread([this]() {
-      while (rclcpp::ok()) {
-        pf_->publishRobotCmd(*cmd_);
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      }
-    });
-
     RCLCPP_INFO(this->get_logger(), "robot_command node ready. Listening to /cmd_vel");
   }
 
-  ~RobotCommandNode() {
-    if (pub_thread_.joinable()) {
-      pub_thread_.join();
-    }
-  }
+  ~RobotCommandNode() = default;
 
 private:
+  static uint64_t now_nanoseconds() {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(
+             std::chrono::steady_clock::now().time_since_epoch()).count();
+  }
+
   void handle_twist(const geometry_msgs::msg::Twist& twist) {
-    RCLCPP_INFO(this->get_logger(), "Received cmd_vel: linear.x=%.2f angular.z=%.2f", twist.linear.x, twist.angular.z);
+    // Update command vectors with the incoming twist; adjust mapping as needed per robot specification.
     for (size_t i = 0; i < cmd_->dq.size(); ++i) {
       cmd_->mode[i] = 1; // 1 = velocity mode
       cmd_->dq[i] = twist.linear.x;
     }
+    cmd_->stamp = now_nanoseconds();
+    pf_->publishRobotCmd(*cmd_);
   }
 
   PointFoot* pf_;
   uint32_t motor_num_;
   std::shared_ptr<RobotCmd> cmd_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr sub_;
-  std::thread pub_thread_;
 };
 
 int main(int argc, char **argv) {
