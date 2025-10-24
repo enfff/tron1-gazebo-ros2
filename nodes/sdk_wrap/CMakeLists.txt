@@ -50,7 +50,13 @@ if(limxsdk_lowlevel_LIBRARIES)
   target_link_libraries(robot_command ${limxsdk_lowlevel_LIBRARIES})
 endif()
 
-install(TARGETS imu_publisher odom_publisher robot_command
+add_executable(joint_state_publisher src/joint_state_publisher_node.cpp)
+ament_target_dependencies(joint_state_publisher rclcpp sensor_msgs)
+if(limxsdk_lowlevel_LIBRARIES)
+  target_link_libraries(joint_state_publisher ${limxsdk_lowlevel_LIBRARIES})
+endif()
+
+install(TARGETS imu_publisher odom_publisher robot_command joint_state_publisher
   DESTINATION lib/${PROJECT_NAME})
 
 ament_package()
