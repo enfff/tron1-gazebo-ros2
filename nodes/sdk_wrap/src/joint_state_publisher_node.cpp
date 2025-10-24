@@ -14,7 +14,7 @@ using namespace std::chrono_literals;
 class JointStatePublisherNode : public rclcpp::Node {
 public:
   JointStatePublisherNode() : Node("joint_state_publisher") {
-    publisher_ = this->create_publisher<sensor_msgs::msg::JointState>("/joint_state", rclcpp::SensorDataQoS());
+    publisher_ = this->create_publisher<sensor_msgs::msg::JointState>("/joint_states", rclcpp::SensorDataQoS());
 
     // Initialize LimX SDK and subscribe to robot state using the fixed robot IP
     auto pf = limxsdk::PointFoot::getInstance();
@@ -33,7 +33,7 @@ public:
       }
     );
 
-    RCLCPP_INFO(this->get_logger(), "Joint state publisher ready. Publishing to /joint_state");
+    RCLCPP_INFO(this->get_logger(), "Joint state publisher ready. Publishing to /joint_states");
   }
 
 private:
