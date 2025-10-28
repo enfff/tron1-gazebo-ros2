@@ -29,12 +29,13 @@ RUN git clone https://github.com/limxdynamics/limxsdk-lowlevel.git && \
 # Clone and build Livox SDK2 (required for LiDAR driver)
 RUN git clone --branch jazzy https://github.com/tu-darmstadt-ros-pkg/Livox-SDK2 /Livox-SDK2
 
-# Build and install Livox SDK2
+# Build and install Livox SDK2 (needs ROS2 environment)
 WORKDIR /Livox-SDK2
-RUN mkdir build && cd build && \
+RUN /bin/bash -c "source /opt/ros/jazzy/setup.bash && \
+    mkdir build && cd build && \
     cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local && \
     make -j$(nproc) && \
-    make install
+    make install"
 
 # Clone Livox ROS driver
 WORKDIR /root/limx_ws/src
