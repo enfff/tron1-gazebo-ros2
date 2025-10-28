@@ -15,6 +15,9 @@ find_package(limxsdk_lowlevel REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(OpenSSL REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(std_msgs REQUIRED)
 
 include_directories(
   ${limxsdk_lowlevel_INCLUDE_DIRS}
@@ -56,10 +59,20 @@ if(limxsdk_lowlevel_LIBRARIES)
   target_link_libraries(joint_state_publisher ${limxsdk_lowlevel_LIBRARIES})
 endif()
 
-install(TARGETS imu_publisher odom_publisher robot_command joint_state_publisher
+add_executable(livox_lidar_node src/livox_lidar_node.cpp)
+ament_target_dependencies(livox_lidar_node 
+  rclcpp 
+  sensor_msgs 
+  geometry_msgs
+  tf2_ros
+  tf2
+  std_msgs
+)
+
+install(TARGETS imu_publisher odom_publisher robot_command joint_state_publisher livox_lidar_node
   DESTINATION lib/${PROJECT_NAME})
 
-install(DIRECTORY launch
+install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME})
 
 ament_package()
