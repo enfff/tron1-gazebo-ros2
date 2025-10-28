@@ -28,7 +28,7 @@ This package wraps the sensor data provided by the SDK into ROS 2 publisher node
 
 This single command gives you:
 - `/imu` - IMU data for localization
-- `/odom` - Odometry data for navigation  
+- `/odom` - Odometry data for navigation
 - `/joint_states` - Joint states for visualization
 - `/cmd_vel` - Command interface for robot control
 - TF transforms for RViz visualization
