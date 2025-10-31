@@ -12,10 +12,8 @@ This package wraps the sensor data provided by the SDK into ROS 2 publisher node
 | Odometry (pose, twist) | [nav_msgs/msg/Odometry.msg](https://docs.ros2.org/foxy/api/nav_msgs/msg/Odometry.html) | `/odom` |
 | Joint States (position, velocity, effort) | [sensor_msgs/msg/JointState.msg](https://docs.ros2.org/foxy/api/sensor_msgs/msg/JointState.html) | `/joint_states` |
 | Robot Commands (velocity commands) | [geometry_msgs/msg/Twist.msg](https://docs.ros2.org/foxy/api/geometry_msgs/msg/Twist.html) | `/cmd_vel` |
-| **Livox LiDAR** | | |
 | LiDAR Point Cloud (custom format) | livox_ros_driver2/msg/CustomMsg | `/livox/points` |
 | LiDAR IMU | [sensor_msgs/msg/imu.msg](https://docs.ros2.org/foxy/api/sensor_msgs/msg/Imu.html) | `/livox/imu` |
-| Processed LiDAR (TRON1 frame) | [sensor_msgs/msg/PointCloud2.msg](https://docs.ros2.org/foxy/api/sensor_msgs/msg/PointCloud2.html) | `/tron1/lidar/pointcloud` |
 
 
 ## How to Run
