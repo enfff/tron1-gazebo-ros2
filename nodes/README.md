@@ -11,7 +11,11 @@ This package wraps the sensor data provided by the SDK into ROS 2 publisher node
 | IMU (orientation, angular_velocity, linear_acceleration) | [sensor_msgs/msg/imu.msg](https://docs.ros2.org/foxy/api/sensor_msgs/msg/Imu.html) | `/imu` |
 | Odometry (pose, twist) | [nav_msgs/msg/Odometry.msg](https://docs.ros2.org/foxy/api/nav_msgs/msg/Odometry.html) | `/odom` |
 | Joint States (position, velocity, effort) | [sensor_msgs/msg/JointState.msg](https://docs.ros2.org/foxy/api/sensor_msgs/msg/JointState.html) | `/joint_states` |
-|  |  |  |
+| Robot Commands (velocity commands) | [geometry_msgs/msg/Twist.msg](https://docs.ros2.org/foxy/api/geometry_msgs/msg/Twist.html) | `/cmd_vel` |
+| **Livox LiDAR** | | |
+| LiDAR Point Cloud (custom format) | livox_ros_driver2/msg/CustomMsg | `/livox/points` |
+| LiDAR IMU | [sensor_msgs/msg/imu.msg](https://docs.ros2.org/foxy/api/sensor_msgs/msg/Imu.html) | `/livox/imu` |
+| Processed LiDAR (TRON1 frame) | [sensor_msgs/msg/PointCloud2.msg](https://docs.ros2.org/foxy/api/sensor_msgs/msg/PointCloud2.html) | `/tron1/lidar/pointcloud` |
 
 
 ## How to Run
@@ -20,15 +24,11 @@ This package wraps the sensor data provided by the SDK into ROS 2 publisher node
     ros2 run sdk_wrap imu_publisher
     ros2 run sdk_wrap odom_publisher
     ros2 run sdk_wrap joint_state_publisher
+    ros2 run sdk_wrap robot_command
+    ros2 run sdk_wrap livox_lidar_node
 
-### Complete robot bringup (recommended):
-**Launches all nodes: IMU, odometry, joint states, command interface + robot_state_publisher for TF transforms**
+### Complete robot bringup:
+    ros2 launch sdk_wrap sensors_launch.py
 
-    ros2 launch sdk_wrap robot_bringup.launch.py
-
-This single command gives you:
-- `/imu` - IMU data for localization
-- `/odom` - Odometry data for navigation
-- `/joint_states` - Joint states for visualization
-- `/cmd_vel` - Command interface for robot control
-- TF transforms for RViz visualization
+### Livox LiDAR only:
+    ros2 launch livox_ros_driver2 msg_MID360_launch.py

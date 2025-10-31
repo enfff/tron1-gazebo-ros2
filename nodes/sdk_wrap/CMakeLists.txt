@@ -18,6 +18,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(livox_ros_driver2 REQUIRED)
 
 include_directories(
   ${limxsdk_lowlevel_INCLUDE_DIRS}
@@ -32,14 +33,12 @@ include_directories(
 
 add_executable(imu_publisher src/imu_publisher_node.cpp)
 ament_target_dependencies(imu_publisher rclcpp sensor_msgs)
-# Link the limxsdk_lowlevel library exported by the package
 if(limxsdk_lowlevel_LIBRARIES)
   target_link_libraries(imu_publisher ${limxsdk_lowlevel_LIBRARIES})
 endif()
 
 add_executable(odom_publisher src/odom_publisher_node.cpp)
 ament_target_dependencies(odom_publisher rclcpp nav_msgs)
-# Link WebSocket++ and related libraries: -lssl -lcrypto -lboost_system -lpthread
 target_link_libraries(odom_publisher 
   ${Boost_LIBRARIES}
   OpenSSL::SSL
@@ -67,7 +66,14 @@ ament_target_dependencies(livox_lidar_node
   tf2_ros
   tf2
   std_msgs
+  livox_ros_driver2
 )
+
+# Fix for livox_ros_driver2 nested include path
+if(EXISTS "/root/limx_ws/install/livox_ros_driver2/include")
+  target_include_directories(livox_lidar_node PRIVATE
+    "/root/limx_ws/install/livox_ros_driver2/include")
+endif()
 
 install(TARGETS imu_publisher odom_publisher robot_command joint_state_publisher livox_lidar_node
   DESTINATION lib/${PROJECT_NAME})
