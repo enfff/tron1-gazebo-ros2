@@ -1,35 +1,28 @@
-# Use ROS2 jazzy base image
 FROM osrf/ros:jazzy-desktop
 
-# Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ROBOT_TYPE=WF_TRON1A
 
-# Install additional dependencies not in base image
 RUN apt-get update && apt-get install -y \
-    # ros-jazzy-gazebo-ros-pkgs \
-    # ros-jazzy-gazebo-ros2-control \
-    # ros-jazzy-ros2-control \
-    # ros-jazzy-ros2-controllers \
-    # ros-jazzy-xacro \
     libboost-all-dev \
     libwebsocketpp-dev \
     nlohmann-json3-dev \
     libmatio-dev \
     git \
+    python3-rosdep \
+    libapr1-dev \
+    libaprutil1-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Create workspace directory
 WORKDIR /root/limx_ws/src
 
-# Clone required repositories
 RUN git clone https://github.com/limxdynamics/limxsdk-lowlevel.git && \
     git clone https://github.com/limxdynamics/robot-description.git
 
 # Clone and build Livox SDK2 (required for LiDAR driver)
 RUN git clone --branch jazzy https://github.com/tu-darmstadt-ros-pkg/Livox-SDK2 /Livox-SDK2
 
-# Build and install Livox SDK2 (needs ROS2 environment)
+# Livox SDK2
 WORKDIR /Livox-SDK2
 RUN /bin/bash -c "source /opt/ros/jazzy/setup.bash && \
     mkdir build && cd build && \
@@ -37,17 +30,16 @@ RUN /bin/bash -c "source /opt/ros/jazzy/setup.bash && \
     make -j$(nproc) && \
     make install"
 
-# Clone Livox ROS driver
+# Livox ROS 2 driver
 WORKDIR /root/limx_ws/src
 RUN git clone --branch jazzy https://github.com/tu-darmstadt-ros-pkg/livox_ros_driver2
 
-# Build the workspace
+# Build everything
 WORKDIR /root/limx_ws
 RUN /bin/bash -c "source /opt/ros/jazzy/setup.bash && \
     export CMAKE_PREFIX_PATH=\"/usr/local:\$CMAKE_PREFIX_PATH\" && \
     colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release"
 
-# Set up entrypoint to source ROS2 and workspace
 RUN echo '#!/bin/bash\n\
 set -e\n\
 source /opt/ros/jazzy/setup.bash\n\
@@ -55,9 +47,21 @@ source /root/limx_ws/install/setup.bash\n\
 exec "$@"' > /ros_entrypoint.sh && \
     chmod +x /ros_entrypoint.sh
 
-# Also add sourcing to .bashrc for interactive shells
 RUN echo 'source /opt/ros/jazzy/setup.bash' >> /root/.bashrc && \
     echo 'source /root/limx_ws/install/setup.bash' >> /root/.bashrc
+
+
+# FAST_LIO
+WORKDIR /root/limx_ws
+RUN /bin/bash -c "source ~/.bashrc && \
+    cd src/ && \
+    git clone https://github.com/Ericsii/FAST_LIO.git --recursive && \
+    cd .. && \
+    rosdep init && \
+    rosdep update && \
+    rosdep install --from-paths src --ignore-src -y --skip-keys='livox_sdk2' && \
+    colcon build --symlink-install --packages-select fast_lio && \
+    source install/setup.bash"
 
 ENTRYPOINT ["/ros_entrypoint.sh"]
 CMD ["bash"]

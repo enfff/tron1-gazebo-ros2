@@ -4,8 +4,6 @@
 
 This package wraps the sensor data provided by the SDK into ROS 2 publisher nodes. The code has been written and tested for ROS 2 Jazzy.
 
-
-
 | data | ros2 message type | topic |
 | --- | --- | --- | 
 | IMU (orientation, angular_velocity, linear_acceleration) | [sensor_msgs/msg/imu.msg](https://docs.ros2.org/foxy/api/sensor_msgs/msg/Imu.html) | `/imu` |
@@ -18,15 +16,14 @@ This package wraps the sensor data provided by the SDK into ROS 2 publisher node
 
 ## How to Run
 
-### Individual nodes:
+**Individual nodes**
+
     ros2 run sdk_wrap imu_publisher
     ros2 run sdk_wrap odom_publisher
     ros2 run sdk_wrap joint_state_publisher
     ros2 run sdk_wrap robot_command
     ros2 run sdk_wrap livox_lidar_node
 
-### Complete robot bringup:
-    ros2 launch sdk_wrap sensors_launch.py
+**Single launch file**
 
-### Livox LiDAR only:
-    ros2 launch livox_ros_driver2 msg_MID360_launch.py
+    ros2 launch sdk_wrap sensors_launch.py
