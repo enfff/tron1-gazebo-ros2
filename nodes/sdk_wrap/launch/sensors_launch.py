@@ -5,7 +5,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, Command
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 from ament_index_python.packages import get_package_share_directory
@@ -29,8 +29,8 @@ def generate_launch_description():
     sdk_wrap_share = FindPackageShare('sdk_wrap')
     robot_description_share = FindPackageShare('robot_description')
     
-    # URDF file path
-    urdf_file = PathJoinSubstitution([
+    # Read URDF file content
+    urdf_file_path = PathJoinSubstitution([
         robot_description_share,
         'pointfoot', 'urdf', 'pointfoot.urdf'
     ])
@@ -71,7 +71,7 @@ def generate_launch_description():
         name='robot_state_publisher',
         output='screen',
         parameters=[{
-            'robot_description': urdf_file,
+            'robot_description': Command(['xacro ', urdf_file_path]),
             'use_sim_time': False
         }]
     )
@@ -95,6 +95,6 @@ def generate_launch_description():
         odom_node,
         joint_state_node,
         robot_command_node,
-        robot_state_publisher,
+        # robot_state_publisher,  # Disabled for now
         livox_launch
     ])
