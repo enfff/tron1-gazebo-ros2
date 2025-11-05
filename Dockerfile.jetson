@@ -1,0 +1,112 @@
+# ----------------------------------------------------------------------
+# Jetson‑compatible ROS 2 Iron Docker image
+# Base: dustynv/ros:${ROS_DISTRO}-desktop-l4t-${JETPACK}
+# Includes all packages from Dockerfile.laptop (Fast‑LIO, Livox SDK2 & driver)
+# ----------------------------------------------------------------------
+
+ARG ROS_DISTRO=jazzy
+ARG JETPACK=r35.4.1
+FROM dustynv/ros:${ROS_DISTRO}-desktop-l4t-${JETPACK}
+
+# -------------------------------------------------
+# General environment variables
+# -------------------------------------------------
+ENV DEBIAN_FRONTEND=noninteractive \
+    ROBOT_TYPE=WF_TRON1A \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
+
+# -------------------------------------------------
+# Install Ubuntu packages (union of Jetson & laptop requirements)
+# -------------------------------------------------
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libboost-all-dev \
+        libwebsocketpp-dev \
+        nlohmann-json3-dev \
+        libmatio-dev \
+        libapr1-dev \
+        libaprutil1-dev \
+        git \
+        curl \
+        python3-pip \
+        python3-rosdep \
+        ros-${ROS_DISTRO}-colcon-common-extensions \
+    && rm -rf /var/lib/apt/lists/*
+
+# -------------------------------------------------
+# Create a non‑root user
+# -------------------------------------------------
+ARG USERNAME=rosuser
+ARG UID=1000
+ARG GID=1000
+RUN groupadd --gid $GID $USERNAME && \
+    useradd --uid $UID --gid $GID -m $USERNAME && \
+    echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USERNAME
+
+# -------------------------------------------------
+# Workspace setup (owned by non‑root user)
+# -------------------------------------------------
+USER $USERNAME
+WORKDIR /home/${USERNAME}
+ENV COLCON_HOME=/home/${USERNAME}/.colcon
+
+# Create workspace and clone required repositories
+RUN mkdir -p limx_ws/src && \
+    cd limx_ws/src && \
+    git clone https://github.com/limxdynamics/robot-description.git && \
+    git clone https://github.com/limxdynamics/limxsdk-lowlevel.git && \
+    git clone https://github.com/limxdynamics/robot-visualization.git && \
+    git clone https://github.com/limxdynamics/tron1-gazebo-ros2.git
+
+# -------------------------------------------------
+# Livox SDK2 (required for the LiDAR driver)
+# -------------------------------------------------
+WORKDIR /Livox-SDK2
+RUN git clone --branch jazzy https://github.com/tu-darmstadt-ros-pkg/Livox-SDK2 . && \
+    . /opt/ros/${ROS_DISTRO}/setup.bash && \
+    mkdir build && cd build && \
+    cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local && \
+    make -j$(nproc) && \
+    make install
+
+# -------------------------------------------------
+# Livox ROS 2 driver
+# -------------------------------------------------
+WORKDIR /home/${USERNAME}/limx_ws/src
+RUN git clone --branch jazzy https://github.com/tu-darmstadt-ros-pkg/livox_ros_driver2.git
+
+# -------------------------------------------------
+# FAST_LIO (LiDAR odometry)
+# -------------------------------------------------
+WORKDIR /home/${USERNAME}/limx_ws
+RUN . /opt/ros/${ROS_DISTRO}/setup.bash && \
+    cd src && \
+    git clone https://github.com/Ericsii/FAST_LIO.git --recursive && \
+    rosdep init || true && \
+    rosdep update && \
+    rosdep install --from-paths src --ignore-src -y --skip-keys='livox_sdk2' && \
+    colcon build --symlink-install --packages-select fast_lio
+
+# -------------------------------------------------
+# Build the remaining workspace packages
+# -------------------------------------------------
+WORKDIR /home/${USERNAME}/limx_ws
+RUN . /opt/ros/${ROS_DISTRO}/setup.bash && \
+    colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
+
+# -------------------------------------------------
+# Entrypoint to source ROS environment
+# -------------------------------------------------
+COPY --chown=$USERNAME:$USERNAME <<'EOF' /ros_entrypoint.sh
+#!/bin/bash
+set -e
+source /opt/ros/${ROS_DISTRO}/setup.bash
+source /home/rosuser/limx_ws/install/setup.bash
+exec "$@"
+EOF
+
+RUN chmod +x /ros_entrypoint.sh
+
+ENTRYPOINT ["/ros_entrypoint.sh"]
+CMD ["bash"]
+
