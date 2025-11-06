@@ -26,11 +26,6 @@ include_directories(
   ${OPENSSL_INCLUDE_DIR}
 )
 
-#include_directories(
-#  /root/limx_ws/src/limxsdk-lowlevel/include
-#  /root/limx_ws/install/limxsdk_lowlevel/include
-#)
-
 add_executable(imu_publisher src/imu_publisher_node.cpp)
 ament_target_dependencies(imu_publisher rclcpp sensor_msgs)
 if(limxsdk_lowlevel_LIBRARIES)
@@ -58,24 +53,24 @@ if(limxsdk_lowlevel_LIBRARIES)
   target_link_libraries(joint_state_publisher ${limxsdk_lowlevel_LIBRARIES})
 endif()
 
-add_executable(livox_lidar_node src/livox_lidar_node.cpp)
-ament_target_dependencies(livox_lidar_node 
-  rclcpp 
-  sensor_msgs 
-  geometry_msgs
-  tf2_ros
-  tf2
-  std_msgs
-  livox_ros_driver2
-)
+#add_executable(livox_lidar_node src/livox_lidar_node.cpp)
+#ament_target_dependencies(livox_lidar_node 
+#  rclcpp 
+#  sensor_msgs 
+#  geometry_msgs
+#  tf2_ros
+#  tf2
+#  std_msgs
+#  livox_ros_driver2
+#)
 
 # Fix for livox_ros_driver2 nested include path
-if(EXISTS "/root/limx_ws/install/livox_ros_driver2/include")
-  target_include_directories(livox_lidar_node PRIVATE
-    "/root/limx_ws/install/livox_ros_driver2/include")
-endif()
+# if(EXISTS "/root/limx_ws/install/livox_ros_driver2/include")
+#   target_include_directories(livox_lidar_node PRIVATE
+#     "/root/limx_ws/install/livox_ros_driver2/include")
+# endif()
 
-install(TARGETS imu_publisher odom_publisher robot_command joint_state_publisher livox_lidar_node
+install(TARGETS imu_publisher odom_publisher robot_command joint_state_publisher
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch config

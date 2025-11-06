@@ -4,6 +4,8 @@
 
 This package wraps the sensor data provided by the SDK into ROS 2 publisher nodes, and provides a launch file to easily run all the sensors including the Livox MID360 Lidar. The code has been written and tested for ROS 2 Jazzy.
 
+The table below summarizes all the information about the nodes involved
+
 | data | ros2 message type | topic |
 | --- | --- | --- | 
 | IMU (orientation, angular_velocity, linear_acceleration) | [sensor_msgs/msg/imu.msg](https://docs.ros2.org/foxy/api/sensor_msgs/msg/Imu.html) | `/imu` |
@@ -13,6 +15,11 @@ This package wraps the sensor data provided by the SDK into ROS 2 publisher node
 | LiDAR Point Cloud (custom format) | [livox_ros_driver2/msg/CustomMsg](src/livox_ros_driver2/msg/CustomMsg.msg) | `/livox/points` |
 | LiDAR IMU | [sensor_msgs/msg/imu.msg](https://docs.ros2.org/foxy/api/sensor_msgs/msg/Imu.html) | `/livox/imu` |
 
+
+## TODOs
+
+- [ ] Launching the livox node requires a custom configuration and lunch file. Find a way to sync them after building
+- [ ] 
 
 ## How to Run
 
