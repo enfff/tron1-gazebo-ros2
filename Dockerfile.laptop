@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     python3-rosdep \
     libapr1-dev \
     libaprutil1-dev \
+    ros-jazzy-xacro \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /root/limx_ws/src
