@@ -5,34 +5,19 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, Command
+from launch.substitutions import PathJoinSubstitution, Command
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-from ament_index_python.packages import get_package_share_directory
+# from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
     
-    # Launch arguments
-    enable_livox_arg = DeclareLaunchArgument(
-        'enable_livox',
-        default_value='true',
-        description='Enable Livox LiDAR'
-    )
-    
-    lidar_type_arg = DeclareLaunchArgument(
-        'lidar_type',
-        default_value='MID360',
-        description='Livox LiDAR type (MID360 or HAP)'
-    )
-
-    # Get package directories
-    sdk_wrap_share = FindPackageShare('sdk_wrap')
-    robot_description_share = FindPackageShare('robot_description')
+    # sdk_wrap_share = FindPackageShare('sdk_wrap')
     
     # Read URDF file content
     urdf_file_path = PathJoinSubstitution([
-        robot_description_share,
-        'pointfoot', 'urdf', 'pointfoot.urdf'
+        FindPackageShare('robot_description'),
+        'pointfoot', 'WF_TRON1A', 'urdf', 'robot.urdf'
     ])
 
     # TRON1 SDK nodes
@@ -85,16 +70,13 @@ def generate_launch_description():
                 'msg_MID360_launch.py'
             ])
         ]),
-        condition=IfCondition(LaunchConfiguration('enable_livox'))
     )
 
     return LaunchDescription([
-        enable_livox_arg,
-        lidar_type_arg,
         imu_node,
         odom_node,
         joint_state_node,
         robot_command_node,
-        # robot_state_publisher,  # Disabled for now
+        robot_state_publisher,
         livox_launch
     ])
