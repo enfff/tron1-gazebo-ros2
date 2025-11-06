@@ -57,6 +57,7 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'robot_description': Command(['xacro ', urdf_file_path]),
+            'robot_description': Command(['xacro ', urdf_file_path]),
             'use_sim_time': False
         }]
     )
@@ -77,6 +78,6 @@ def generate_launch_description():
         odom_node,
         joint_state_node,
         robot_command_node,
-        robot_state_publisher,
+        # robot_state_publisher,  # Disabled for now
         livox_launch
     ])
