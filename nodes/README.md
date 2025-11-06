@@ -2,7 +2,7 @@
 
 > ⚠️ Before compiling and running the nodes, make sure to enable the odometry and IMU data as explained in the [upper level development](https://support.limxdynamics.com/en/docs/tron-1-sdk/upper-level-development). 
 
-This package wraps the sensor data provided by the SDK into ROS 2 publisher nodes. The code has been written and tested for ROS 2 Jazzy.
+This package wraps the SDK’s sensor data into ROS 2 publisher nodes and includes a launch file to start all sensors, including the Livox MID360 LiDAR. The nodes and launch file were developed and tested on ROS 2 Jazzy.
 
 | data | ros2 message type | topic |
 | --- | --- | --- | 
