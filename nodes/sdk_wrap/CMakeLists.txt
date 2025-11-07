@@ -53,6 +53,9 @@ if(limxsdk_lowlevel_LIBRARIES)
   target_link_libraries(joint_state_publisher ${limxsdk_lowlevel_LIBRARIES})
 endif()
 
+add_executable(qos_converter_node src/qos_converter_node.cpp)
+ament_target_dependencies(qos_converter_node rclcpp sensor_msgs)
+
 #add_executable(livox_lidar_node src/livox_lidar_node.cpp)
 #ament_target_dependencies(livox_lidar_node 
 #  rclcpp 
@@ -70,7 +73,7 @@ endif()
 #     "/root/limx_ws/install/livox_ros_driver2/include")
 # endif()
 
-install(TARGETS imu_publisher odom_publisher robot_command joint_state_publisher
+install(TARGETS imu_publisher odom_publisher robot_command joint_state_publisher qos_converter_node
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch config

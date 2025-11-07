@@ -57,12 +57,11 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'robot_description': Command(['xacro ', urdf_file_path]),
-            'robot_description': Command(['xacro ', urdf_file_path]),
             'use_sim_time': False
         }]
     )
 
-    # Livox LiDAR launch
+    # Livox LiDAR
     livox_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             PathJoinSubstitution([
@@ -72,12 +71,61 @@ def generate_launch_description():
             ])
         ]),
     )
+    
+    # Fast-LIO mapping launch
+    fast_lio_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([
+                FindPackageShare('fast_lio'),
+                'launch',
+                'mapping.launch.py'
+            ])
+        ]),
+        launch_arguments={'config_file': 'mid360.yaml'}.items()
+    )
+    
+    # QoS Converter: BEST_EFFORT -> RELIABLE
+    qos_converter = Node(
+        package='sdk_wrap',
+        executable='qos_converter_node',
+        name='qos_converter_node',
+        output='screen'
+    )
+
+    # PointCloud to LaserScan converter (now uses /cloud_in with RELIABLE QoS)
+    pointcloud_to_laserscan = Node(
+        package='pointcloud_to_laserscan',
+        executable='pointcloud_to_laserscan_node',
+        name='pointcloud_to_laserscan',
+        # remappings=[
+        #     ('cloud_in', '/cloud_in'),      # Input: Converted point cloud (RELIABLE QoS)
+        #     ('scan', '/laserscan')          # Output: 2D laser scan
+        # ],
+        parameters=[{
+            'transform_tolerance': 0.01,
+            'min_height': -0.5,             # Lower bound for Z-axis filtering
+            'max_height': 2.0,              # Upper bound for Z-axis filtering  
+            'angle_min': -3.14159,          # -180 degrees
+            'angle_max': 3.14159,           # +180 degrees
+            'angle_increment': 0.0087,      # ~0.5 degrees resolution
+            'scan_time': 0.1,               # Scan time for velocity calculations
+            'range_min': 0.1,               # Minimum range
+            'range_max': 100.0,             # Maximum range
+            'use_inf': True,                # Use infinity for max range
+            'inf_epsilon': 1.0              # Epsilon for infinity comparison
+        }]
+    )
+    
+    
 
     return LaunchDescription([
         imu_node,
         odom_node,
         joint_state_node,
         robot_command_node,
-        # robot_state_publisher,  # Disabled for now
-        livox_launch
+        robot_state_publisher,
+        livox_launch,
+        qos_converter,
+        pointcloud_to_laserscan,
+        # fast_lio_launch
     ])
