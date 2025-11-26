@@ -19,7 +19,40 @@ The table below summarizes all the information about the nodes involved
 ## TODOs
 
 - [ ] Launching the livox node requires a custom configuration and lunch file. Find a way to sync them after building
-- [ ] 
+<details>
+<summary>Fix frame_id field for livox node</summary>
+
+```
+[livox_lidar_publisher]: Data Source is raw lidar.
+[livox_ros_driver2_node-1] [INFO] [1763381643.007388426] [livox_lidar_publisher]: Config file: /root/limx_ws/src/livox_ros_driver2/launch/../config/MID360_config.json
+[livox_ros_driver2_node-1] LdsLidar *GetInstance
+[livox_ros_driver2_node-1] config lidar type: 8
+[livox_ros_driver2_node-1] successfully parse base config, counts: 1
+[livox_ros_driver2_node-1] [INFO] [1763381643.009903931] [livox_lidar_publisher]: Init lds lidar success!
+[livox_ros_driver2_node-1] GetFreeIndex key:livox_lidar_84000778.
+[livox_ros_driver2_node-1] set pcl data type, handle: 84000778, data type: 1
+[livox_ros_driver2_node-1] set scan pattern, handle: 84000778, scan pattern: 0
+[livox_ros_driver2_node-1] begin to change work mode to 'Normal', handle: 84000778
+[livox_ros_driver2_node-1] successfully set data type, handle: 84000778, set_bit: 2
+[livox_ros_driver2_node-1] successfully set pattern mode, handle: 84000778, set_bit: 0
+[livox_ros_driver2_node-1] successfully set lidar attitude, ip: 10.192.1.5
+[livox_ros_driver2_node-1] successfully change work mode, handle: 84000778
+[livox_ros_driver2_node-1] successfully enable Livox Lidar imu, ip: 10.192.1.5
+[livox_ros_driver2_node-1] [INFO] [1763381651.171796190] [livox_lidar_publisher]: livox/imu publish use imu format
+[livox_ros_driver2_node-1] [INFO] [1763381651.280314094] [livox_lidar_publisher]: livox/points publish use PointCloud2 format
+[livox_ros_driver2_node-1] Init queue, real query size:16.
+[livox_ros_driver2_node-1] Lidar[0] storage queue size: 10
+^C[WARNING] [launch]: user interrupted with ctrl-c (SIGINT)
+[livox_ros_driver2_node-1] [INFO] [1763381670.237243503] [rclcpp]: signal_handler(signum=2)
+[livox_ros_driver2_node-1] Livox Lidar SDK Deinit completely!
+[livox_ros_driver2_node-1] lddc destory!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+[livox_ros_driver2_node-1] lds destory!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+[INFO] [livox_ros_driver2_node-1]: process has finished cleanly [pid 31992]
+```
+</details>
+
+- [x] Buffer node to retransmit lidar data w/ QOS "best effort" to the converter node 
+
 
 ## How to Run
 
@@ -29,7 +62,9 @@ The table below summarizes all the information about the nodes involved
     ros2 run sdk_wrap odom_publisher
     ros2 run sdk_wrap joint_state_publisher
     ros2 run sdk_wrap robot_command
-    ros2 launch livox_ros_driver2 msg_MID360_launch.py
+    ros2 launch livox_ros_driver2 msg_MID360_launch.py xfer_format:=0
+
+The LiDAR node configuration file is located [here](src/livox_ros_driver2/config/MID360_config.json)
 
 <!-- ros2 run sdk_wrap livox_lidar_node -->
 
