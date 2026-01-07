@@ -55,10 +55,11 @@ RUN echo 'source /opt/ros/jazzy/setup.bash' >> /root/.bashrc && \
 
 # FAST_LIO
 WORKDIR /root/limx_ws
-RUN /bin/bash -c "source ~/.bashrc && \
+RUN /bin/bash -c "source /opt/ros/jazzy/setup.bash && \
+    apt update && \
     cd src/ && \
     git clone https://github.com/Ericsii/FAST_LIO.git --recursive && \
-    cd .. && \
+    cd /root/limx_ws && \
     [ -f /etc/ros/rosdep/sources.list.d/20-default.list ] || rosdep init && \
     rosdep update && \
     rosdep install --from-paths src --ignore-src -y --skip-keys='livox_sdk2' && \
