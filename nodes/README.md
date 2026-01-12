@@ -18,7 +18,7 @@ The table below summarizes all the information about the nodes involved
 
 ## TODOs
 
-- [ ] Launching the livox node requires a custom configuration and lunch file. Find a way to sync them after building
+- [x] Launching the livox node requires a custom configuration and lunch file. Find a way to sync them after building
 <details>
 <summary>Fix frame_id field for livox node</summary>
 
@@ -51,7 +51,8 @@ The table below summarizes all the information about the nodes involved
 ```
 </details>
 
-- [x] Buffer node to retransmit lidar data w/ QOS "best effort" to the converter node 
+- [x] Buffer node to retransmit lidar data w/ QOS "best effort" to the converter node
+- [ ] Update Dockerfile to replace the lidar configuration file (msg_MID360_config.json) *after* the driver installation
 
 
 ## How to Run
