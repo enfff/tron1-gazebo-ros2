@@ -3,6 +3,7 @@
 #include <chrono>
 #include <atomic>
 #include <thread>
+#include <fstream>
 
 #include "rclcpp/rclcpp.hpp"
 #include "nav_msgs/msg/odometry.hpp"
@@ -23,6 +24,13 @@ public:
   OdomPublisherNode() : Node("odom_publisher"), accid_(""), connected_(false) {
     publisher_ = this->create_publisher<nav_msgs::msg::Odometry>("/odom", rclcpp::SensorDataQoS());
 
+    // Load robot IP from config file
+    std::string robot_ip = loadRobotIpFromConfig();
+    if (robot_ip.empty()) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to load robot IP from config file");
+      return;
+    }
+
     // Initialize WebSocket client
     ws_client_.init_asio();
     ws_client_.set_open_handler([this](connection_hdl hdl) { on_open(hdl); });
@@ -32,7 +40,7 @@ public:
     ws_client_.set_close_handler([this](connection_hdl hdl) { on_close(hdl); });
 
     // Connect to robot WebSocket server
-    std::string server_uri = "ws://10.192.1.2:5000";
+    std::string server_uri = "ws://" + robot_ip + ":5000";
     websocketpp::lib::error_code ec;
     auto con = ws_client_.get_connection(server_uri, ec);
 
@@ -64,6 +72,21 @@ public:
   }
 
 private:
+  std::string loadRobotIpFromConfig() {
+    try {
+      std::ifstream config_file("/root/limx_ws/src/livox_ros_driver2/config/MID360_config.json");
+      if (!config_file.is_open()) {
+        RCLCPP_WARN(this->get_logger(), "Could not open config file");
+        return "";
+      }
+      json config = json::parse(config_file);
+      return config["MID360"]["host_net_info"]["cmd_data_ip"].get<std::string>();
+    } catch (const std::exception &e) {
+      RCLCPP_ERROR(this->get_logger(), "Error parsing config file: %s", e.what());
+      return "";
+    }
+  }
+
   void on_open(connection_hdl hdl) {
     connected_ = true;
     current_hdl_ = hdl;

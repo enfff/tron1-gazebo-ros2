@@ -1,29 +1,38 @@
 #include <memory>
 #include <string>
 #include <chrono>
+#include <fstream>
 
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
+#include "nlohmann/json.hpp"
 
 #include "limxsdk/pointfoot.h"
 #include "limxsdk/datatypes.h"
 
 using std::placeholders::_1;
 using namespace std::chrono_literals;
+using json = nlohmann::json;
 
 class JointStatePublisherNode : public rclcpp::Node {
 public:
   JointStatePublisherNode() : Node("joint_state_publisher") {
     publisher_ = this->create_publisher<sensor_msgs::msg::JointState>("/joint_states", rclcpp::SensorDataQoS());
 
-    // Initialize LimX SDK and subscribe to robot state using the fixed robot IP
+    // Load robot IP from config file
+    std::string robot_ip = loadRobotIpFromConfig();
+    if (robot_ip.empty()) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to load robot IP from config file");
+      return;
+    }
+
+    // Initialize LimX SDK and subscribe to robot state using the loaded robot IP
     auto pf = limxsdk::PointFoot::getInstance();
-    constexpr const char* kRobotIp = "10.192.1.2";
-    if (!pf->init(kRobotIp)) {
-      RCLCPP_ERROR(this->get_logger(), "Failed to init LimX PointFoot with IP %s", kRobotIp);
+    if (!pf->init(robot_ip.c_str())) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to init LimX PointFoot with IP %s", robot_ip.c_str());
       // We don't throw; allow retries or later connection
     } else {
-      RCLCPP_INFO(this->get_logger(), "Connected to robot at %s", kRobotIp);
+      RCLCPP_INFO(this->get_logger(), "Connected to robot at %s", robot_ip.c_str());
     }
 
     // Subscribe to robot state updates and publish into ROS 2
@@ -37,6 +46,21 @@ public:
   }
 
 private:
+  std::string loadRobotIpFromConfig() {
+    try {
+      std::ifstream config_file("/root/limx_ws/src/livox_ros_driver2/config/MID360_config.json");
+      if (!config_file.is_open()) {
+        RCLCPP_WARN(this->get_logger(), "Could not open config file");
+        return "";
+      }
+      json config = json::parse(config_file);
+      return config["MID360"]["host_net_info"]["cmd_data_ip"].get<std::string>();
+    } catch (const std::exception &e) {
+      RCLCPP_ERROR(this->get_logger(), "Error parsing config file: %s", e.what());
+      return "";
+    }
+  }
+
   void publishJointState(const limxsdk::RobotState &state) {
     sensor_msgs::msg::JointState msg;
 

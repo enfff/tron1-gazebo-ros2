@@ -1,22 +1,32 @@
 #include <memory>
 #include <string>
 #include <chrono>
+#include <fstream>
 
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/twist.hpp"
+#include "nlohmann/json.hpp"
+
 #include "limxsdk/pointfoot.h"
 #include "limxsdk/datatypes.h"
 
 using namespace limxsdk;
+using json = nlohmann::json;
 
 class RobotCommandNode : public rclcpp::Node {
 public:
   RobotCommandNode() : Node("robot_command") {
+    // Load robot IP from config file
+    std::string robot_ip = loadRobotIpFromConfig();
+    if (robot_ip.empty()) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to load robot IP from config file");
+      exit(1);
+    }
+
     // Connect to robot
     pf_ = PointFoot::getInstance();
-    constexpr const char* kRobotIp = "10.192.1.2";
-    if (!pf_->init(kRobotIp)) {
-      RCLCPP_ERROR(this->get_logger(), "Failed to init LimX PointFoot with IP %s", kRobotIp);
+    if (!pf_->init(robot_ip.c_str())) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to init LimX PointFoot with IP %s", robot_ip.c_str());
       exit(1);
     }
     motor_num_ = pf_->getMotorNumber();
@@ -43,6 +53,21 @@ public:
   ~RobotCommandNode() = default;
 
 private:
+  std::string loadRobotIpFromConfig() {
+    try {
+      std::ifstream config_file("/root/limx_ws/src/livox_ros_driver2/config/MID360_config.json");
+      if (!config_file.is_open()) {
+        RCLCPP_WARN(this->get_logger(), "Could not open config file");
+        return "";
+      }
+      json config = json::parse(config_file);
+      return config["MID360"]["host_net_info"]["cmd_data_ip"].get<std::string>();
+    } catch (const std::exception &e) {
+      RCLCPP_ERROR(this->get_logger(), "Error parsing config file: %s", e.what());
+      return "";
+    }
+  }
+
   static uint64_t now_nanoseconds() {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(
              std::chrono::steady_clock::now().time_since_epoch()).count();
