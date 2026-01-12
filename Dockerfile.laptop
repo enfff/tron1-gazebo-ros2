@@ -56,6 +56,7 @@ RUN echo 'source /opt/ros/jazzy/setup.bash' >> /root/.bashrc && \
 # FAST_LIO
 WORKDIR /root/limx_ws
 RUN /bin/bash -c "source /opt/ros/jazzy/setup.bash && \
+    source /root/limx_ws/install/setup.bash && \
     apt update && \
     cd src/ && \
     git clone https://github.com/Ericsii/FAST_LIO.git --recursive && \
