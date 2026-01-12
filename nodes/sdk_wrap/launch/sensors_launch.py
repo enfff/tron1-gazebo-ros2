@@ -72,6 +72,18 @@ def generate_launch_description():
         ]),
     )
     
+    static_tf = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='static_tf_livox_imu_to_map',
+        arguments=[
+            '0', '0', '2.1',        # x y z
+            '0', '0', '3.14159',        # roll pitch yaw
+            'livox_frame', 'base_Link'    # parent child
+        ]
+    )
+
+    
     # Fast-LIO mapping launch
     fast_lio_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
@@ -127,5 +139,6 @@ def generate_launch_description():
         livox_launch,
         qos_converter,
         pointcloud_to_laserscan,
+        static_tf
         # fast_lio_launch
     ])
