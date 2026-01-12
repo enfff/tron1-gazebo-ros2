@@ -57,12 +57,14 @@ The table below summarizes all the information about the nodes involved
 ## How to Run
 
 Before launching nodes:
-1. configure the `MID360_config.json` in `src/livox_ros_driver2/config/MID360_config.json with` the correct IP addresses. To figure them out, read [IP Addresses](#ip-addresses)
+1. configure the `MID360_config.json` in `src/livox_ros_driver2/config/MID360_config.json with` the correct IP addresses (see [IP Addresses](#ip-addresses))
 2. Set the variable `xfer_format` in `src/livox_ros_driver2/launch/msg_MID360_launch.py` to `0`
 
 **Single launch file**
 
     ros2 launch sdk_wrap sensors_launch.py
+
+The lidar tf can be configured in this launch file
 
 **Individual nodes**
 
