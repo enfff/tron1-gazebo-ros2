@@ -56,6 +56,14 @@ The table below summarizes all the information about the nodes involved
 
 ## How to Run
 
+Before launching nodes:
+1. configure the `MID360_config.json` in `src/livox_ros_driver2/config/MID360_config.json with` the correct IP addresses. To figure them out, read [IP Addresses](#ip-addresses)
+2. Set the variable `xfer_format` in `src/livox_ros_driver2/launch/msg_MID360_launch.py` to `0`
+
+**Single launch file**
+
+    ros2 launch sdk_wrap sensors_launch.py
+
 **Individual nodes**
 
     ros2 run sdk_wrap imu_publisher
@@ -64,17 +72,31 @@ The table below summarizes all the information about the nodes involved
     ros2 run sdk_wrap robot_command
     ros2 launch livox_ros_driver2 msg_MID360_launch.py xfer_format:=0
 
-The LiDAR node configuration file is located [here](src/livox_ros_driver2/config/MID360_config.json)
-
 <!-- ros2 run sdk_wrap livox_lidar_node -->
 
-**Single launch file**
-
-    ros2 launch sdk_wrap sensors_launch.py
 
 # IP Addresses
 
+Addresses vary with your network layout. For a reliable setup, configure your host (laptop or Jetson) with a LAN profile using:
+
+- IP address: `192.168.1.50`
+- Netmask: `255.255.255.0`
+- Default gateway: `192.168.1.50`
+
+On the ethernet switch¹, connect: 
+- Port 1: robot
+- Port 2: LiDAR
+- Port 3: host
+
+This wiring guarantees proper communication between all devices.
+
+¹Note: this code has been tested using a SWITCH TP-LINK LS108G ethernet switch
+
+<!-- 10.192.1.2 -->
+
 | Component | IP Address |
 |:-:|:-:|
-|TRON 1 (SDK)|10.192.1.2|
-|LiDAR|10.192.1.5|
+|TRON 1 (SDK)|192.168.1.50|
+|LiDAR|192.168.1.1XX|
+
+Where XX are the last two digits of the lidar serial number 
