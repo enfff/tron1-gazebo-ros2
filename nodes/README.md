@@ -97,8 +97,9 @@ This wiring guarantees proper communication between all devices.
 <!-- 10.192.1.2 -->
 
 | Component | IP Address |
-|:-:|:-:|
-|TRON 1 (SDK)|192.168.1.50|
+|-:|:-|
+|TRON 1 (SDK)|10.192.1.2|
+|Host IP|192.168.1.50|
 |LiDAR|192.168.1.1XX|
 
 Where XX are the last two digits of the lidar serial number 
