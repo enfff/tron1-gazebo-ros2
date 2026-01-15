@@ -7,6 +7,8 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "nav_msgs/msg/odometry.hpp"
+#include "tf2_ros/transform_broadcaster.h"
+#include "geometry_msgs/msg/transform_stamped.hpp"
 
 #include <websocketpp/client.hpp>
 #include <websocketpp/config/asio.hpp>
@@ -23,6 +25,7 @@ class OdomPublisherNode : public rclcpp::Node {
 public:
   OdomPublisherNode() : Node("odom_publisher"), accid_(""), connected_(false) {
     publisher_ = this->create_publisher<nav_msgs::msg::Odometry>("/odom", rclcpp::SensorDataQoS());
+    tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
 
     // Load robot IP from config file
     std::string robot_ip = loadRobotIpFromConfig();
@@ -40,7 +43,8 @@ public:
     ws_client_.set_close_handler([this](connection_hdl hdl) { on_close(hdl); });
 
     // Connect to robot WebSocket server
-    std::string server_uri = "ws://" + robot_ip + ":5000";
+    robot_ip="10.192.1.2";
+    std::string server_uri = std::string("ws://") + robot_ip + ":5000";
     websocketpp::lib::error_code ec;
     auto con = ws_client_.get_connection(server_uri, ec);
 
@@ -148,7 +152,7 @@ private:
     // Header
     msg.header.stamp = this->now();
     msg.header.frame_id = "odom";
-    msg.child_frame_id = "base_link";
+    msg.child_frame_id = "base_Link";
 
     // Parse pose orientation [x, y, z, w]
     if (odom_data.contains("pose_orientation") && odom_data["pose_orientation"].is_array()) {
@@ -188,9 +192,24 @@ private:
     msg.twist.covariance[0] = -1.0;
 
     publisher_->publish(msg);
+
+    // Broadcast TF transform from odom to base_Link
+    geometry_msgs::msg::TransformStamped transform;
+    transform.header.stamp = msg.header.stamp;
+    transform.header.frame_id = "odom";
+    transform.child_frame_id = "base_Link";
+    
+    transform.transform.translation.x = msg.pose.pose.position.x;
+    transform.transform.translation.y = msg.pose.pose.position.y;
+    transform.transform.translation.z = msg.pose.pose.position.z;
+    
+    transform.transform.rotation = msg.pose.pose.orientation;
+    
+    tf_broadcaster_->sendTransform(transform);
   }
 
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr publisher_;
+  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
   client<websocketpp::config::asio> ws_client_;
   connection_hdl current_hdl_;
   std::thread ws_thread_;

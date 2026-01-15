@@ -16,8 +16,8 @@ def generate_launch_description():
     
     # Read URDF file content
     urdf_file_path = PathJoinSubstitution([
-        FindPackageShare('robot_description'),
-        'pointfoot', 'WF_TRON1A', 'urdf', 'robot.urdf'
+        FindPackageShare('sdk_wrap'),
+        'urdf', 'robot.urdf'
     ])
 
     # TRON1 SDK nodes
@@ -56,7 +56,7 @@ def generate_launch_description():
         name='robot_state_publisher',
         output='screen',
         parameters=[{
-            'robot_description': Command(['xacro ', urdf_file_path]),
+            'robot_description': Command(['cat ', urdf_file_path]),
             'use_sim_time': False
         }]
     )
@@ -79,7 +79,7 @@ def generate_launch_description():
         arguments=[
             '0', '0', '2.1',        # x y z
             '0', '0', '3.14159',        # roll pitch yaw
-            'livox_frame', 'base_Link'    # parent child
+            'base_Link', 'livox_frame'    # parent child
         ]
     )
 
@@ -124,7 +124,11 @@ def generate_launch_description():
             'range_min': 0.1,               # Minimum range
             'range_max': 100.0,             # Maximum range
             'use_inf': True,                # Use infinity for max range
-            'inf_epsilon': 1.0              # Epsilon for infinity comparison
+            'inf_epsilon': 1.0,             # Epsilon for infinity comparison
+            'qos_overrides./scan.publisher.reliability': 'reliable',
+            'qos_overrides./scan.publisher.durability': 'volatile',
+            'qos_overrides./scan.publisher.history': 'keep_last',
+            'qos_overrides./scan.publisher.depth': 10
         }]
     )
     
@@ -133,8 +137,8 @@ def generate_launch_description():
     return LaunchDescription([
         imu_node,
         odom_node,
-        joint_state_node,
-        robot_command_node,
+        # joint_state_node,  # DISABLED: joint states now published by robot_command node
+        robot_command_node,  # Now publishes both commands and joint states
         robot_state_publisher,
         livox_launch,
         qos_converter,

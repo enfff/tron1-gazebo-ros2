@@ -1,0 +1,16 @@
+services:
+  tron1:
+    image: tron1-sdk:laptop
+    container_name: tron1-sdk
+    hostname: ${HOSTNAME}
+    network_mode: host
+    stdin_open: true
+    tty: true
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ./nodes:/root/limx_ws/src/nodes
+      - /dev/dri:/dev/dri
+    command: bash

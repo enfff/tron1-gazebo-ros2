@@ -28,12 +28,15 @@ include_directories(
 
 add_executable(imu_publisher src/imu_publisher_node.cpp)
 ament_target_dependencies(imu_publisher rclcpp sensor_msgs)
-if(limxsdk_lowlevel_LIBRARIES)
-  target_link_libraries(imu_publisher ${limxsdk_lowlevel_LIBRARIES})
-endif()
+target_link_libraries(imu_publisher 
+  ${Boost_LIBRARIES}
+  OpenSSL::SSL
+  OpenSSL::Crypto
+  pthread
+)
 
 add_executable(odom_publisher src/odom_publisher_node.cpp)
-ament_target_dependencies(odom_publisher rclcpp nav_msgs)
+ament_target_dependencies(odom_publisher rclcpp nav_msgs geometry_msgs tf2_ros)
 target_link_libraries(odom_publisher 
   ${Boost_LIBRARIES}
   OpenSSL::SSL
@@ -42,7 +45,7 @@ target_link_libraries(odom_publisher
 )
 
 add_executable(robot_command src/robot_command.cpp)
-ament_target_dependencies(robot_command rclcpp geometry_msgs)
+ament_target_dependencies(robot_command rclcpp geometry_msgs sensor_msgs)
 if(limxsdk_lowlevel_LIBRARIES)
   target_link_libraries(robot_command ${limxsdk_lowlevel_LIBRARIES})
 endif()
@@ -79,7 +82,7 @@ ament_target_dependencies(buffer_node rclcpp sensor_msgs)
 install(TARGETS imu_publisher odom_publisher robot_command joint_state_publisher qos_converter_node buffer_node
   DESTINATION lib/${PROJECT_NAME})
 
-install(DIRECTORY launch config
+install(DIRECTORY launch config urdf meshes
   DESTINATION share/${PROJECT_NAME})
 
 ament_package()
