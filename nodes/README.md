@@ -61,6 +61,8 @@ Before launching nodes:
 1. configure the `MID360_config.json` in `src/livox_ros_driver2/config/MID360_config.json with` the correct IP addresses (see [IP Addresses](#ip-addresses))
 2. Set the variable `xfer_format` in `src/livox_ros_driver2/launch/msg_MID360_launch.py` to `0`
 
+A working configuration can be found [here](sdk_wrap/config/msg_MID360_config.json)
+
 **Single launch file**
 
     ros2 launch sdk_wrap sensors_launch.py
@@ -73,10 +75,7 @@ The lidar tf can be configured in this launch file
     ros2 run sdk_wrap odom_publisher
     ros2 run sdk_wrap joint_state_publisher
     ros2 run sdk_wrap robot_command
-    ros2 launch livox_ros_driver2 msg_MID360_launch.py xfer_format:=0
-
-<!-- ros2 run sdk_wrap livox_lidar_node -->
-
+    ros2 launch livox_ros_driver2 msg_MID360_launch.py
 
 # IP Addresses
 
@@ -98,8 +97,9 @@ This wiring guarantees proper communication between all devices.
 <!-- 10.192.1.2 -->
 
 | Component | IP Address |
-|:-:|:-:|
-|TRON 1 (SDK)|192.168.1.50|
+|-:|:-|
+|TRON 1 (SDK)|10.192.1.2|
+|Host IP|192.168.1.50|
 |LiDAR|192.168.1.1XX|
 
 Where XX are the last two digits of the lidar serial number 
