@@ -47,10 +47,17 @@ def send_request(title, data=None):
 def twist_publisher_loop():
     """Continuously publish request_twist at 30 Hz while enabled."""
     global twist_sending
+    print("[DEBUG] Twist publisher loop started!", flush=True)
     rate = 1.0 / 30.0
     next_time = time.time()
+    count = 0
     while twist_sending and not should_exit:
         send_request("request_twist", twist_cmd)
+        count += 1
+        if count == 1:  # Print immediately on first send
+            print(f"[DEBUG] First twist command sent: x={twist_cmd['x']}, y={twist_cmd['y']}, z={twist_cmd['z']}", flush=True)
+        if count % 30 == 0:  # Print debug message every second (30 messages)
+            print(f"[DEBUG] Sent {count} twist commands (x={twist_cmd['x']}, y={twist_cmd['y']}, z={twist_cmd['z']})", flush=True)
         next_time += rate
         sleep_duration = next_time - time.time()
         if sleep_duration > 0:
@@ -58,6 +65,7 @@ def twist_publisher_loop():
         else:
             # If we're lagging, reset the schedule to now to avoid drift
             next_time = time.time()
+    print(f"[DEBUG] Twist publisher loop stopped. Total commands sent: {count}", flush=True)
 
 # Handle user commands
 def handle_commands():
@@ -79,11 +87,15 @@ def handle_commands():
             y = float(input("Enter y value:"))
             z = float(input("Enter z value:"))
             twist_cmd = {"x": x, "y": y, "z": z}
+            print(f"[INFO] Setting twist values: x={x}, y={y}, z={z}", flush=True)
             if not twist_sending:
                 twist_sending = True
                 twist_thread = threading.Thread(target=twist_publisher_loop, daemon=True)
                 twist_thread.start()
-            print("Started sending request_twist at 30 Hz. Use 'twist' again to update values or 'twist_stop' to stop.")
+                print(f"[INFO] Started sending request_twist at 30 Hz", flush=True)
+            else:
+                print(f"[INFO] Stopped sending request_twist.", flush=True)
+            print("Use 'twist' again to update values or 'twist_stop' to stop.", flush=True)
         elif command == "twist_stop":
             twist_sending = False
             print("Stopped sending request_twist.")
@@ -111,7 +123,11 @@ def on_message(ws, message):
     # Filter out battery status messages
     if "battery" in message.lower():
        return
-    print(f"Received message: {message}")  # Print the received message
+    # Highlight twist-related messages
+    if "twist" in message.lower():
+        print(f"[TWIST RESPONSE] {message}", flush=True)
+    else:
+        print(f"Received message: {message}", flush=True)
 
 # WebSocket on_close callback
 def on_close(ws, close_status_code, close_msg):

@@ -3,11 +3,17 @@
 #include <chrono>
 #include <fstream>
 #include <atomic>
+#include <sstream>
+#include <thread>
 
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
 #include "nlohmann/json.hpp"
+
+// WebSocket client library
+#include <websocketpp/config/asio_no_tls_client.hpp>
+#include <websocketpp/client.hpp>
 
 #include "limxsdk/pointfoot.h"
 #include "limxsdk/datatypes.h"
@@ -15,53 +21,37 @@
 using namespace limxsdk;
 using json = nlohmann::json;
 
+typedef websocketpp::client<websocketpp::config::asio_client> ws_client;
+
 class RobotCommandNode : public rclcpp::Node {
 public:
-  RobotCommandNode() : Node("robot_command") {
+  RobotCommandNode() : Node("robot_command"), ws_connected_(false) {
+    // Initialize last command timestamp
+    last_cmd_time_ = this->now();
+    last_twist_.linear.x = 0.0;
+    last_twist_.angular.z = 0.0;
+    
     // Create joint state publisher
     joint_state_pub_ = this->create_publisher<sensor_msgs::msg::JointState>(
       "/joint_states", rclcpp::SensorDataQoS());
 
-    // Load robot IP from config file
-    std::string robot_ip = loadRobotIpFromConfig();
-    if (robot_ip.empty()) {
-      RCLCPP_ERROR(this->get_logger(), "Failed to load robot IP from config file");
-      exit(1);
-    }
+    // Use robot IP address
+    std::string robot_ip = "10.192.1.2";
+    RCLCPP_INFO(this->get_logger(), "Using robot IP: %s", robot_ip.c_str());
 
-    // Connect to robot
+    // Connect to robot SDK (for joint states)
     pf_ = PointFoot::getInstance();
     if (!pf_->init(robot_ip.c_str())) {
-      RCLCPP_ERROR(this->get_logger(), "Failed to init LimX PointFoot with IP %s", robot_ip.c_str());
+      RCLCPP_ERROR(this->get_logger(), "Failed to init LimX PointFoot SDK with IP %s", robot_ip.c_str());
       exit(1);
     }
     
-    RCLCPP_INFO(this->get_logger(), "SDK initialized successfully");
+    RCLCPP_INFO(this->get_logger(), "SDK initialized successfully for joint state feedback");
     motor_num_ = pf_->getMotorNumber();
     RCLCPP_INFO(this->get_logger(), "Robot has %u motors", motor_num_);
-    
-    cmd_ = std::make_shared<RobotCmd>(motor_num_);
-    // Default command: zero velocity in velocity mode
-    for (size_t i = 0; i < cmd_->mode.size(); ++i) {
-      cmd_->mode[i] = 1; // velocity mode
-      cmd_->dq[i] = 0.0;
-    }
-    cmd_->stamp = now_nanoseconds();
-    pf_->publishRobotCmd(*cmd_);
-
-    // Create a timer to periodically publish joint states
-    // Note: We don't resend robot commands here to avoid overriding cmd_vel
-    cmd_timer_ = this->create_wall_timer(
-      std::chrono::milliseconds(10),  // 100Hz
-      [this]() {
-        // WORKAROUND: Publish fake joint states since SDK callback isn't working
-        // This at least makes RViz visualization work
-        publishFakeJointState();
-      }
-    );
 
     // Subscribe to robot state and publish as joint states
-    RCLCPP_INFO(this->get_logger(), "Subscribing to robot state...");
+    RCLCPP_INFO(this->get_logger(), "Subscribing to robot state via SDK...");
     pf_->subscribeRobotState(
       [this](const RobotStateConstPtr &state) {
         RCLCPP_INFO_ONCE(this->get_logger(), "First robot state received! Publishing joint states...");
@@ -70,18 +60,53 @@ public:
     );
     RCLCPP_INFO(this->get_logger(), "Robot state subscription registered");
 
+    // Initialize WebSocket for sending commands
+    initializeWebSocket(robot_ip);
+
+    // Timer to send twist commands via WebSocket at 30Hz
+    cmd_timer_ = this->create_wall_timer(
+      std::chrono::milliseconds(33),  // ~30Hz
+      [this]() {
+        sendTwistCommand();
+        // Publish fake joint states as fallback
+        publishFakeJointState();
+      }
+    );
+
     // Subscribe to cmd_vel
     sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
       "cmd_vel", rclcpp::QoS(10),
       [this](const geometry_msgs::msg::Twist::SharedPtr msg) {
-        handle_twist(*msg);
+        auto now = this->now();
+        auto time_since_last = (now - last_cmd_time_).seconds();
+        
+        last_twist_ = *msg;
+        last_cmd_time_ = now;
+        
+        // Warn if commands are arriving too slowly
+        if (time_since_last > 0.05 && time_since_last < 10.0) {
+          RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                              "cmd_vel arriving at %.1f Hz (should be ~30Hz)",
+                              1.0 / time_since_last);
+        }
+        
+        RCLCPP_INFO(this->get_logger(), 
+                   "Received cmd_vel: linear.x=%.3f, angular.z=%.3f (dt=%.3fs)",
+                   msg->linear.x, msg->angular.z, time_since_last);
       }
     );
 
-    RCLCPP_INFO(this->get_logger(), "robot_command node ready. Listening to /cmd_vel and publishing /joint_states");
+    RCLCPP_INFO(this->get_logger(), "robot_command node ready. Sending commands via WebSocket, receiving joint states via SDK");
   }
 
-  ~RobotCommandNode() = default;
+  ~RobotCommandNode() {
+    if (ws_connected_) {
+      ws_client_.close(ws_conn_hdl_, websocketpp::close::status::normal, "");
+    }
+    if (ws_thread_.joinable()) {
+      ws_thread_.join();
+    }
+  }
 
 private:
   std::string loadRobotIpFromConfig() {
@@ -104,45 +129,130 @@ private:
              std::chrono::steady_clock::now().time_since_epoch()).count();
   }
 
-  void handle_twist(const geometry_msgs::msg::Twist& twist) {
-    // Convert Twist (linear.x, angular.z) to differential drive wheel velocities
-    // Robot has wheel-legged biped configuration with wheels at indices 3 (left) and 7 (right)
-    // Differential drive: v_left = linear.x - (angular.z * wheel_base / 2)
-    //                     v_right = linear.x + (angular.z * wheel_base / 2)
+  std::string generate_guid() {
+    std::stringstream ss;
+    ss << std::hex << std::chrono::system_clock::now().time_since_epoch().count();
+    return ss.str();
+  }
+
+  void initializeWebSocket(const std::string& robot_ip) {
+    // Clear logging to reduce verbosity
+    ws_client_.clear_access_channels(websocketpp::log::alevel::all);
+    ws_client_.clear_error_channels(websocketpp::log::elevel::all);
     
-    const double wheel_base = 0.26;  // Distance between wheels in meters (from URDF collision box)
-    const double wheel_radius = 0.0625;  // Wheel radius in meters (approximate)
+    ws_client_.init_asio();
     
-    // Calculate wheel linear velocities
-    double v_left = twist.linear.x - (twist.angular.z * wheel_base / 2.0);
-    double v_right = twist.linear.x + (twist.angular.z * wheel_base / 2.0);
-    
-    // Convert to wheel angular velocities (rad/s)
-    double omega_left = v_left / wheel_radius;
-    double omega_right = v_right / wheel_radius;
-    
-    // Set all motors to position hold mode (0) except wheels
-    for (size_t i = 0; i < cmd_->dq.size(); ++i) {
-      cmd_->mode[i] = 0;  // Position hold for leg joints
-      cmd_->dq[i] = 0.0;
-    }
-    
-    // Set wheel velocities (index 3 = wheel_L, index 7 = wheel_R)
-    if (cmd_->mode.size() > 7) {
-      cmd_->mode[3] = 1;  // Velocity mode for left wheel
-      cmd_->dq[3] = omega_left;
+    ws_client_.set_open_handler([this](websocketpp::connection_hdl hdl) {
+      ws_connected_ = true;
+      ws_conn_hdl_ = hdl;
+      RCLCPP_INFO(this->get_logger(), "✓ WebSocket connected successfully to robot");
       
-      cmd_->mode[7] = 1;  // Velocity mode for right wheel
-      cmd_->dq[7] = omega_right;
+      // Send walk mode command on connection
+      send_websocket_command("request_walk_mode", json::object());
+    });
+    
+    ws_client_.set_message_handler([this](websocketpp::connection_hdl, ws_client::message_ptr msg) {
+      RCLCPP_DEBUG(this->get_logger(), "WS received: %s", msg->get_payload().c_str());
+    });
+    
+    ws_client_.set_fail_handler([this](websocketpp::connection_hdl hdl) {
+      ws_connected_ = false;
+      try {
+        auto con = ws_client_.get_con_from_hdl(hdl);
+        RCLCPP_ERROR(this->get_logger(), "WebSocket connection FAILED! Error: %s", 
+                     con->get_ec().message().c_str());
+      } catch (...) {
+        RCLCPP_ERROR(this->get_logger(), "WebSocket connection FAILED! (unknown error)");
+      }
+    });
+    
+    ws_client_.set_close_handler([this](websocketpp::connection_hdl hdl) {
+      ws_connected_ = false;
+      try {
+        auto con = ws_client_.get_con_from_hdl(hdl);
+        RCLCPP_WARN(this->get_logger(), "WebSocket connection closed. Code: %d, Reason: %s",
+                    con->get_remote_close_code(), con->get_remote_close_reason().c_str());
+      } catch (...) {
+        RCLCPP_WARN(this->get_logger(), "WebSocket connection closed");
+      }
+    });
+    
+    // Connect to robot WebSocket server
+    std::string server_uri = "ws://" + robot_ip + ":5000";
+    RCLCPP_INFO(this->get_logger(), "Connecting to WebSocket: %s", server_uri.c_str());
+    
+    websocketpp::lib::error_code ec;
+    auto con = ws_client_.get_connection(server_uri, ec);
+    if (ec) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to create WebSocket connection: %s", ec.message().c_str());
+      return;
     }
     
-    cmd_->stamp = now_nanoseconds();
-    pf_->publishRobotCmd(*cmd_);
+    ws_client_.connect(con);
     
-    // Log commands for debugging
-    RCLCPP_DEBUG(this->get_logger(), 
-                 "cmd_vel: linear.x=%.3f, angular.z=%.3f -> wheel_L=%.3f, wheel_R=%.3f rad/s",
-                 twist.linear.x, twist.angular.z, omega_left, omega_right);
+    // Run WebSocket in separate thread
+    ws_thread_ = std::thread([this]() { 
+      try {
+        ws_client_.run();
+        RCLCPP_INFO(this->get_logger(), "WebSocket thread ended");
+      } catch (const std::exception& e) {
+        RCLCPP_ERROR(this->get_logger(), "WebSocket thread exception: %s", e.what());
+      }
+    });
+    
+    RCLCPP_INFO(this->get_logger(), "WebSocket initialization started, waiting for connection...");
+  }
+
+  void send_websocket_command(const std::string& title, const json& data) {
+    if (!ws_connected_) {
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 5000, 
+                          "WebSocket not connected, cannot send command");
+      return;
+    }
+    
+    json message = {
+      {"accid", "WF_TRON1A_343"},
+      {"title", title},
+      {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count()},
+      {"guid", generate_guid()},
+      {"data", data}
+    };
+    
+    websocketpp::lib::error_code ec;
+    ws_client_.send(ws_conn_hdl_, message.dump(), websocketpp::frame::opcode::text, ec);
+    if (ec) {
+      RCLCPP_ERROR(this->get_logger(), "WebSocket send error: %s", ec.message().c_str());
+    }
+  }
+
+  void sendTwistCommand() {
+    auto time_since_last = (this->now() - last_cmd_time_).seconds();
+    
+    geometry_msgs::msg::Twist twist_to_send;
+    if (time_since_last > 2.0) {
+      // Timeout - send zero velocity for safety
+      twist_to_send.linear.x = 0.0;
+      twist_to_send.angular.z = 0.0;
+    } else {
+      twist_to_send = last_twist_;
+    }
+    
+    // Send twist command via WebSocket
+    json twist_data = {
+      {"x", twist_to_send.linear.x},
+      {"y", 0.0},  // lateral velocity (not used for differential drive)
+      {"z", twist_to_send.angular.z}
+    };
+    
+    send_websocket_command("request_twist", twist_data);
+    
+    static int log_counter = 0;
+    if (log_counter++ % 300 == 0) {  // Log every 10 seconds at 30Hz
+      RCLCPP_INFO(this->get_logger(), 
+                 "Sending twist via WebSocket: x=%.3f, z=%.3f",
+                 twist_to_send.linear.x, twist_to_send.angular.z);
+    }
   }
 
   void publishJointState(const RobotState &state) {
@@ -211,6 +321,16 @@ private:
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr sub_;
   rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_state_pub_;
   rclcpp::TimerBase::SharedPtr cmd_timer_;
+  
+  // WebSocket members
+  ws_client ws_client_;
+  std::thread ws_thread_;
+  websocketpp::connection_hdl ws_conn_hdl_;
+  bool ws_connected_;
+  
+  // Store last received command for continuous publishing
+  geometry_msgs::msg::Twist last_twist_;
+  rclcpp::Time last_cmd_time_;
 };
 
 int main(int argc, char **argv) {

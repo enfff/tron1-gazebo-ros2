@@ -103,3 +103,25 @@ This wiring guarantees proper communication between all devices.
 |LiDAR|192.168.1.1XX|
 
 Where XX are the last two digits of the lidar serial number 
+
+## SLAM and Navigation
+
+### SLAM Toolbox
+
+Launch SLAM Toolbox with custom parameters:
+
+```bash
+ros2 launch slam_toolbox online_async_launch.py slam_params_file:=/root/limx_ws/install/sdk_wrap/share/sdk_wrap/config/slam_params.yaml
+```
+
+Customize the `slam_params.yaml` file in `sdk_wrap/config/` to adjust SLAM parameters such as mapping resolution, loop closure detection, and scan matching tolerances.
+
+### Nav2 (Navigation 2)
+
+Launch Nav2 with custom parameters:
+
+```bash
+ros2 launch nav2_bringup navigation_launch.py params_file:=/home/jack92/Documents/tron1-gazebo-ros2/nodes/sdk_wrap/config/nav2_params.yaml
+```
+
+Adjust the `nav2_params.yaml` file in `sdk_wrap/config/` to configure navigation parameters such as planner settings, controller gains, and costmap resolution. 

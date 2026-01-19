@@ -46,9 +46,24 @@ target_link_libraries(odom_publisher
 
 add_executable(robot_command src/robot_command.cpp)
 ament_target_dependencies(robot_command rclcpp geometry_msgs sensor_msgs)
+target_link_libraries(robot_command 
+  ${Boost_LIBRARIES}
+  OpenSSL::SSL
+  OpenSSL::Crypto
+  pthread
+)
 if(limxsdk_lowlevel_LIBRARIES)
   target_link_libraries(robot_command ${limxsdk_lowlevel_LIBRARIES})
 endif()
+
+add_executable(robot_command_websocket src/robot_command_websocket.cpp)
+ament_target_dependencies(robot_command_websocket rclcpp geometry_msgs)
+target_link_libraries(robot_command_websocket 
+  ${Boost_LIBRARIES}
+  OpenSSL::SSL
+  OpenSSL::Crypto
+  pthread
+)
 
 add_executable(joint_state_publisher src/joint_state_publisher_node.cpp)
 ament_target_dependencies(joint_state_publisher rclcpp sensor_msgs)
@@ -79,7 +94,7 @@ ament_target_dependencies(buffer_node rclcpp sensor_msgs)
 #     "/root/limx_ws/install/livox_ros_driver2/include")
 # endif()
 
-install(TARGETS imu_publisher odom_publisher robot_command joint_state_publisher qos_converter_node buffer_node
+install(TARGETS imu_publisher odom_publisher robot_command robot_command_websocket joint_state_publisher qos_converter_node buffer_node
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch config urdf meshes

@@ -35,13 +35,7 @@ def generate_launch_description():
         output='screen'
     )
 
-    joint_state_node = Node(
-        package='sdk_wrap',
-        executable='joint_state_publisher',
-        name='joint_state_publisher',
-        output='screen'
-    )
-
+    # robot_command now handles both WebSocket control AND joint state publishing
     robot_command_node = Node(
         package='sdk_wrap',
         executable='robot_command',
