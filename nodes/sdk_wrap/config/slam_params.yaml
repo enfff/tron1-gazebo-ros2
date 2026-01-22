@@ -18,13 +18,14 @@ slam_toolbox:
     mode: mapping #localization
 
     debug_logging: false
-    throttle_scans: 1
-    transform_publish_period: 0.02 #if 0 never publishes odometry
+    throttle_scans: 4  # Process every 4th scan for faster updates
+    transform_publish_period: 0.02  # 50Hz - publish map->odom transform frequently
     map_update_interval: 5.0
     resolution: 0.05
-    max_laser_range: 20.0 #for rastering images
-    minimum_time_interval: 0.5
-    transform_timeout: 1.0  # Increased from 0.2 to 1.0
+    max_laser_range: 8.0  # Further reduced - only nearby reliable features
+    min_laser_range: 0.3  # Increased from 0.2
+    minimum_time_interval: 0.1  # Process scans more frequently to reduce latency
+    transform_timeout: 2.0  # Increased to 2.0 for more tolerance
     tf_buffer_duration: 30.0
     stack_size_to_use: 40000000
     enable_interactive_mode: true
@@ -32,22 +33,22 @@ slam_toolbox:
     # General Parameters
     use_scan_matching: true
     use_scan_barycenter: true
-    minimum_travel_distance: 0.5
-    minimum_travel_heading: 0.5
-    scan_buffer_size: 10
+    minimum_travel_distance: 0.10  # Small - update frequently for smooth tracking
+    minimum_travel_heading: 0.10   # Small - update frequently
+    scan_buffer_size: 60  # Large buffer (6 seconds) for excellent orientation tracking
     scan_buffer_maximum_scan_distance: 10.0
-    link_match_minimum_response_fine: 0.1  
-    link_scan_maximum_distance: 1.5
+    link_match_minimum_response_fine: 0.35  # Lower - accept more matches for robustness
+    link_scan_maximum_distance: 4.0  # Link even more distant scans for orientation
     loop_search_maximum_distance: 3.0
-    do_loop_closing: true 
-    loop_match_minimum_chain_size: 10           
-    loop_match_maximum_variance_coarse: 3.0  
-    loop_match_minimum_response_coarse: 0.35    
+    do_loop_closing: false  # DISABLED to prevent jumps during initial mapping
+    loop_match_minimum_chain_size: 10
+    loop_match_maximum_variance_coarse: 3.0
+    loop_match_minimum_response_coarse: 0.35
     loop_match_minimum_response_fine: 0.45
 
     # Correlation Parameters - Correlation Parameters
-    correlation_search_space_dimension: 0.5
-    correlation_search_space_resolution: 0.01
+    correlation_search_space_dimension: 0.5  # Safe value
+    correlation_search_space_resolution: 0.01  # Finer resolution
     correlation_search_space_smear_deviation: 0.1 
 
     # Correlation Parameters - Loop Closure Parameters
@@ -56,12 +57,12 @@ slam_toolbox:
     loop_search_space_smear_deviation: 0.03
 
     # Scan Matcher Parameters
-    distance_variance_penalty: 0.5      
-    angle_variance_penalty: 1.0    
+    distance_variance_penalty: 0.15    # Very low - strongly trust scan over odometry
+    angle_variance_penalty: 0.05       # Extremely low - almost ignore odom orientation    
 
     fine_search_angle_offset: 0.00349     
-    coarse_search_angle_offset: 0.349   
-    coarse_angle_resolution: 0.0349        
+    coarse_search_angle_offset: 0.524      # Increased to ±30° search
+    coarse_angle_resolution: 0.0349        # Finer angle resolution for better orientation
     minimum_angle_penalty: 0.9
     minimum_distance_penalty: 0.5
     use_response_expansion: true

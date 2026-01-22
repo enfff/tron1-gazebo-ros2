@@ -65,15 +65,17 @@ def generate_launch_description():
             ])
         ]),
     )
-    
+
+    # Static transform: livox_frame relative to base_Link  
+    # Trying yaw=180° only to flip X direction
     static_tf = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
-        name='static_tf_livox_imu_to_map',
+        name='static_tf_base_to_livox',
         arguments=[
-            '0', '0', '2.1',        # x y z
-            '0', '0', '3.14159',        # roll pitch yaw
-            'base_Link', 'livox_frame'    # parent child
+            '0', '0', '0.3',          # x y z translation
+            '0', '0', '3.14159',      # roll=0 pitch=0 yaw=180°
+            'base_Link', 'livox_frame'
         ]
     )
 
@@ -103,17 +105,18 @@ def generate_launch_description():
         package='pointcloud_to_laserscan',
         executable='pointcloud_to_laserscan_node',
         name='pointcloud_to_laserscan',
-        # remappings=[
-        #     ('cloud_in', '/cloud_in'),      # Input: Converted point cloud (RELIABLE QoS)
-        #     ('scan', '/laserscan')          # Output: 2D laser scan
-        # ],
+        remappings=[
+            ('cloud_in', '/cloud_in'),      # Input: Converted point cloud (RELIABLE QoS)
+            ('scan', '/scan')               # Output: 2D laser scan
+        ],
         parameters=[{
-            'transform_tolerance': 0.01,
-            'min_height': -0.5,             # Lower bound for Z-axis filtering
-            'max_height': 2.0,              # Upper bound for Z-axis filtering  
+            'target_frame': 'base_Link',  # Transform to base_Link for Nav2
+            'transform_tolerance': 0.5,
+            'min_height': -0.20,             # Exclude ground (below -0.2m), keep obstacles above
+            'max_height': 0.90,              # Include obstacles up to 50cm above base_Link  
             'angle_min': -3.14159,          # -180 degrees
             'angle_max': 3.14159,           # +180 degrees
-            'angle_increment': 0.0087,      # ~0.5 degrees resolution
+            'angle_increment': 0.00873,      # ~1 degree resolution (720 points)
             'scan_time': 0.1,               # Scan time for velocity calculations
             'range_min': 0.1,               # Minimum range
             'range_max': 100.0,             # Maximum range
@@ -126,11 +129,22 @@ def generate_launch_description():
         }]
     )
     
-    
+    # Robot Localization EKF - fuses odom_raw + IMU -> filtered /odom + odom->base_Link TF
+    ekf_node = Node(
+        package='robot_localization',
+        executable='ekf_node',
+        name='ekf_filter_node',
+        output='screen',
+        parameters=[PathJoinSubstitution([
+            FindPackageShare('sdk_wrap'),
+            'config', 'ekf_params.yaml'
+        ])]
+    )
 
     return LaunchDescription([
         imu_node,
         odom_node,
+        ekf_node,  # EKF for smooth filtered odometry
         # joint_state_node,  # DISABLED: joint states now published by robot_command node
         robot_command_node,  # Now publishes both commands and joint states
         robot_state_publisher,
