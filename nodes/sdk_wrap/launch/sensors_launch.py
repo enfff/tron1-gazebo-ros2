@@ -73,7 +73,7 @@ def generate_launch_description():
         executable='static_transform_publisher',
         name='static_tf_base_to_livox',
         arguments=[
-            '0', '0', '0.3',          # x y z translation
+            '0', '0', '0.2',          # x y z translation
             '0', '0', '3.14159',      # roll=0 pitch=0 yaw=180°
             'base_Link', 'livox_frame'
         ]
@@ -112,11 +112,11 @@ def generate_launch_description():
         parameters=[{
             'target_frame': 'base_Link',  # Transform to base_Link for Nav2
             'transform_tolerance': 0.5,
-            'min_height': -0.20,             # Exclude ground (below -0.2m), keep obstacles above
-            'max_height': 0.90,              # Include obstacles up to 50cm above base_Link  
+            'min_height': -0.6,              # 1 meter below base_Link
+            'max_height': 0.3,               # 0.3 meters above base_Link
             'angle_min': -3.14159,          # -180 degrees
             'angle_max': 3.14159,           # +180 degrees
-            'angle_increment': 0.00873,      # ~1 degree resolution (720 points)
+            'angle_increment': 0.00873,      # ~
             'scan_time': 0.1,               # Scan time for velocity calculations
             'range_min': 0.1,               # Minimum range
             'range_max': 100.0,             # Maximum range

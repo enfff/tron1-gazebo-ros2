@@ -157,10 +157,21 @@ private:
       msg.linear_acceleration.z = acc[2].get<double>();
     }
 
-    // Set covariances to unknown
-    msg.orientation_covariance[0] = -1.0;
-    msg.angular_velocity_covariance[0] = -1.0;
-    msg.linear_acceleration_covariance[0] = -1.0;
+    // Set proper covariances for robot_localization EKF
+    // Orientation covariance (roll, pitch, yaw in rad^2)
+    msg.orientation_covariance[0] = 0.1;   // roll variance
+    msg.orientation_covariance[4] = 0.1;   // pitch variance
+    msg.orientation_covariance[8] = 0.05;  // yaw variance (IMU is good at yaw)
+    
+    // Angular velocity covariance (rad/s)^2
+    msg.angular_velocity_covariance[0] = 0.02;  // x
+    msg.angular_velocity_covariance[4] = 0.02;  // y
+    msg.angular_velocity_covariance[8] = 0.02;  // z
+    
+    // Linear acceleration covariance (m/s^2)^2
+    msg.linear_acceleration_covariance[0] = 0.1;  // x
+    msg.linear_acceleration_covariance[4] = 0.1;  // y
+    msg.linear_acceleration_covariance[8] = 0.1;  // z
 
     publisher_->publish(msg);
   }
