@@ -22,8 +22,15 @@ RUN apt-get update && apt-get install -y \
     libapr1-dev \
     libaprutil1-dev \
     libpcl-dev \
+    build-essential \
+    cmake \
+    python3-colcon-common-extensions \
     ros-jazzy-pcl-conversions \
+    ros-jazzy-ament-cmake \
+    ros-jazzy-slam-toolbox \
+    ros-jazzy-nav2-bringup \
     && rm -rf /var/lib/apt/lists/*
+
 
 WORKDIR /root/limx_ws/src
 ENV DEBIAN_FRONTEND=noninteractive
@@ -36,7 +43,7 @@ RUN git clone --branch jazzy https://github.com/tu-darmstadt-ros-pkg/Livox-SDK2 
 
 # Livox SDK2
 WORKDIR /Livox-SDK2
-RUN /bin/bash -c "source /opt/ros/jazzy/install/setup.bash && \
+RUN /bin/bash -c "source /opt/ros/jazzy/setup.bash && \
     mkdir build && cd build && \
     cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local && \
     make -j$(nproc) && \
@@ -48,33 +55,31 @@ RUN git clone --branch jazzy https://github.com/tu-darmstadt-ros-pkg/livox_ros_d
 
 RUN apt-get update && apt-get install -y ros-jazzy-perception-pcl && rm -rf /var/lib/apt/lists/*
 
+RUN echo 'source /opt/ros/jazzy/setup.bash' >> /root/.bashrc && \
+    echo 'source /root/limx_ws/install/setup.bash' >> /root/.bashrc && \
+    echo 'export CMAKE_PREFIX_PATH="/usr/local:/opt/ros/jazzy:$CMAKE_PREFIX_PATH"' >> /root/.bashrc
+
 # Build everything
 WORKDIR /root/limx_ws
 RUN /bin/bash -c "source /opt/ros/jazzy/install/setup.bash && \
     export CMAKE_PREFIX_PATH=\"/usr/local:/opt/ros/jazzy:\$CMAKE_PREFIX_PATH\" && \
-    colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release"
+    colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release"
 
 COPY ros_entrypoint.sh /ros_entrypoint.sh
 RUN chmod +x /ros_entrypoint.sh
 
-RUN echo 'source /opt/ros/jazzy/install/setup.bash' >> /root/.bashrc && \
-    echo 'source /root/limx_ws/install/setup.bash' >> /root/.bashrc
-
-
-# # FAST_LIO
-# WORKDIR /root/limx_ws
-# RUN /bin/bash -c "source ~/.bashrc && \
-#     cd src/ && \
-#     git clone https://github.com/Ericsii/FAST_LIO.git --recursive && \
-#     cd .. && \
-#     rosdep init && \
-#     rosdep update && \
-#     rosdep install --from-paths src --ignore-src -y --skip-keys='livox_sdk2' && \
-#     colcon build --symlink-install --packages-select fast_lio && \
-#     source install/setup.bash"
+# Copy and build sdk_wrap
+WORKDIR /root/limx_ws/src
+COPY nodes/sdk_wrap sdk_wrap
 
 WORKDIR /root/limx_ws
-RUN /bin/bash -c "source ~/.bashrc && source install/setup.bash"
+RUN /bin/bash -c "set -e && \
+source /opt/ros/jazzy/install/setup.bash && \
+source /root/limx_ws/install/setup.bash && \
+export CMAKE_PREFIX_PATH=\"/usr/local:/opt/ros/jazzy:\$CMAKE_PREFIX_PATH\" && \
+colcon build --symlink-install --packages-select=sdk_wrap --cmake-args -DCMAKE_BUILD_TYPE=Release"
+
+RUN /bin/bash -c "rosdep install --rosdistro jazzy --from-paths src --ignore-src -r -y"
 
 ENTRYPOINT ["/ros_entrypoint.sh"]
 CMD ["bash"]
