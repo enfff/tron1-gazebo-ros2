@@ -1,20 +1,15 @@
 services:
   gazebo:
     image: struzzo:jetson
+    container_name: struzzo-jetson
     build:
       context: .
       dockerfile: Dockerfile.jetson
     runtime: nvidia
     network_mode: host
-    # Ensure DISPLAY is set (e.g. via ssh -X) before running compose
+    stdin_open: true
+    tty: true
     environment:
-      - DISPLAY=${DISPLAY}
-      - XAUTHORITY=/root/.Xauthority
-      - QT_X11_NO_MITSHM=1
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=all
-    # Set XAUTHORITY on the host (e.g. export XAUTHORITY=$HOME/.Xauthority)
-    volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix
-      - ${XAUTHORITY}:/root/.Xauthority:ro
-    command: ros2 launch pointfoot_gazebo empty_world.launch.py
+    command: bash

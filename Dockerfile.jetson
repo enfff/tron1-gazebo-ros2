@@ -1,112 +1,80 @@
-# ----------------------------------------------------------------------
-# Jetson‑compatible ROS 2 Iron Docker image
-# Base: dustynv/ros:${ROS_DISTRO}-desktop-l4t-${JETPACK}
-# Includes all packages from Dockerfile.laptop (Fast‑LIO, Livox SDK2 & driver)
-# ----------------------------------------------------------------------
-
 ARG ROS_DISTRO=jazzy
-ARG JETPACK=r35.4.1
-FROM dustynv/ros:${ROS_DISTRO}-desktop-l4t-${JETPACK}
+ARG JETPACK=r36.4.0-cu128-24.04
 
-# -------------------------------------------------
-# General environment variables
-# -------------------------------------------------
-ENV DEBIAN_FRONTEND=noninteractive \
-    ROBOT_TYPE=WF_TRON1A \
-    NVIDIA_VISIBLE_DEVICES=all \
-    NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics
+FROM dustynv/ros:jazzy-ros-base-r36.4.0-cu128-24.04
 
-# -------------------------------------------------
-# Install Ubuntu packages (union of Jetson & laptop requirements)
-# -------------------------------------------------
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        libboost-all-dev \
-        libwebsocketpp-dev \
-        nlohmann-json3-dev \
-        libmatio-dev \
-        libapr1-dev \
-        libaprutil1-dev \
-        git \
-        curl \
-        python3-pip \
-        python3-rosdep \
-        ros-${ROS_DISTRO}-colcon-common-extensions \
+ENV DEBIAN_FRONTEND=noninteractive
+ENV ROBOT_TYPE=WF_TRON1A
+
+# The base is outdated with respect to the ROS keyring - refresh it
+RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /tmp/ros.key \
+ && gpg --dearmor < /tmp/ros.key > /usr/share/keyrings/ros-archive-keyring.gpg \
+ && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
+ && rm /tmp/ros.key
+
+RUN apt-get update && apt-get install -y \
+    libboost-all-dev \
+    libwebsocketpp-dev \
+    nlohmann-json3-dev \
+    libmatio-dev \
+    git \
+    python3-rosdep \
+    libapr1-dev \
+    libaprutil1-dev \
+    libpcl-dev \
+    ros-jazzy-pcl-conversions \
     && rm -rf /var/lib/apt/lists/*
 
-# -------------------------------------------------
-# Create a non‑root user
-# -------------------------------------------------
-ARG USERNAME=rosuser
-ARG UID=1000
-ARG GID=1000
-RUN groupadd --gid $GID $USERNAME && \
-    useradd --uid $UID --gid $GID -m $USERNAME && \
-    echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/$USERNAME
+WORKDIR /root/limx_ws/src
+ENV DEBIAN_FRONTEND=noninteractive
 
-# -------------------------------------------------
-# Workspace setup (owned by non‑root user)
-# -------------------------------------------------
-USER $USERNAME
-WORKDIR /home/${USERNAME}
-ENV COLCON_HOME=/home/${USERNAME}/.colcon
+RUN git clone https://github.com/limxdynamics/limxsdk-lowlevel.git && \
+    git clone https://github.com/limxdynamics/robot-description.git
 
-# Create workspace and clone required repositories
-RUN mkdir -p limx_ws/src && \
-    cd limx_ws/src && \
-    git clone https://github.com/limxdynamics/robot-description.git && \
-    git clone https://github.com/limxdynamics/limxsdk-lowlevel.git && \
-    git clone https://github.com/limxdynamics/robot-visualization.git && \
-    git clone https://github.com/limxdynamics/tron1-gazebo-ros2.git
+# Clone and build Livox SDK2 (required for LiDAR driver)
+RUN git clone --branch jazzy https://github.com/tu-darmstadt-ros-pkg/Livox-SDK2 /Livox-SDK2
 
-# -------------------------------------------------
-# Livox SDK2 (required for the LiDAR driver)
-# -------------------------------------------------
+# Livox SDK2
 WORKDIR /Livox-SDK2
-RUN git clone --branch jazzy https://github.com/tu-darmstadt-ros-pkg/Livox-SDK2 . && \
-    . /opt/ros/${ROS_DISTRO}/setup.bash && \
+RUN /bin/bash -c "source /opt/ros/jazzy/install/setup.bash && \
     mkdir build && cd build && \
     cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local && \
     make -j$(nproc) && \
-    make install
+    make install"
 
-# -------------------------------------------------
-# Livox ROS 2 driver
-# -------------------------------------------------
-WORKDIR /home/${USERNAME}/limx_ws/src
-RUN git clone --branch jazzy https://github.com/tu-darmstadt-ros-pkg/livox_ros_driver2.git
+# Livox ROS 2 driver
+WORKDIR /root/limx_ws/src
+RUN git clone --branch jazzy https://github.com/tu-darmstadt-ros-pkg/livox_ros_driver2
 
-# -------------------------------------------------
-# FAST_LIO (LiDAR odometry)
-# -------------------------------------------------
-WORKDIR /home/${USERNAME}/limx_ws
-RUN . /opt/ros/${ROS_DISTRO}/setup.bash && \
-    cd src && \
-    git clone https://github.com/Ericsii/FAST_LIO.git --recursive && \
-    rosdep init || true && \
-    rosdep update && \
-    rosdep install --from-paths src --ignore-src -y --skip-keys='livox_sdk2' && \
-    colcon build --symlink-install --packages-select fast_lio
+RUN apt-get update && apt-get install -y ros-jazzy-perception-pcl && rm -rf /var/lib/apt/lists/*
 
-# -------------------------------------------------
-# Build the remaining workspace packages
-# -------------------------------------------------
-WORKDIR /home/${USERNAME}/limx_ws
-RUN . /opt/ros/${ROS_DISTRO}/setup.bash && \
-    colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
+# Build everything
+WORKDIR /root/limx_ws
+RUN /bin/bash -c "source /opt/ros/jazzy/install/setup.bash && \
+    export CMAKE_PREFIX_PATH=\"/usr/local:/opt/ros/jazzy:\$CMAKE_PREFIX_PATH\" && \
+    colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release"
 
-# -------------------------------------------------
-# Entrypoint to source ROS environment
-# -------------------------------------------------
-COPY --chown=$USERNAME:$USERNAME <<'EOF' /ros_entrypoint.sh
-#!/bin/bash
-set -e
-source /opt/ros/${ROS_DISTRO}/setup.bash
-source /home/rosuser/limx_ws/install/setup.bash
-exec "$@"
-EOF
-
+COPY ros_entrypoint.sh /ros_entrypoint.sh
 RUN chmod +x /ros_entrypoint.sh
+
+RUN echo 'source /opt/ros/jazzy/install/setup.bash' >> /root/.bashrc && \
+    echo 'source /root/limx_ws/install/setup.bash' >> /root/.bashrc
+
+
+# # FAST_LIO
+# WORKDIR /root/limx_ws
+# RUN /bin/bash -c "source ~/.bashrc && \
+#     cd src/ && \
+#     git clone https://github.com/Ericsii/FAST_LIO.git --recursive && \
+#     cd .. && \
+#     rosdep init && \
+#     rosdep update && \
+#     rosdep install --from-paths src --ignore-src -y --skip-keys='livox_sdk2' && \
+#     colcon build --symlink-install --packages-select fast_lio && \
+#     source install/setup.bash"
+
+WORKDIR /root/limx_ws
+RUN /bin/bash -c "source ~/.bashrc && source install/setup.bash"
 
 ENTRYPOINT ["/ros_entrypoint.sh"]
 CMD ["bash"]
-

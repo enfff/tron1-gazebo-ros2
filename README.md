@@ -45,9 +45,8 @@ On the Jetson:
 
 ```bash
 docker build -f Dockerfile.jetson -t struzzo:jetson .
-echo $DISPLAY
-export XAUTHORITY=$HOME/.Xauthority
-docker compose -f docker-compose.jetson.yml up --build
+docker compose -f docker-compose.jetson.yml up -d
+docker exec -it struzzo-jetson bash
 ```
 
 ## ROS 2 Data Bridge
