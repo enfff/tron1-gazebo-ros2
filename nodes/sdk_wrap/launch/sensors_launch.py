@@ -5,34 +5,19 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import PathJoinSubstitution, Command
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-from ament_index_python.packages import get_package_share_directory
+# from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
     
-    # Launch arguments
-    enable_livox_arg = DeclareLaunchArgument(
-        'enable_livox',
-        default_value='true',
-        description='Enable Livox LiDAR'
-    )
+    # sdk_wrap_share = FindPackageShare('sdk_wrap')
     
-    lidar_type_arg = DeclareLaunchArgument(
-        'lidar_type',
-        default_value='MID360',
-        description='Livox LiDAR type (MID360 or HAP)'
-    )
-
-    # Get package directories
-    sdk_wrap_share = FindPackageShare('sdk_wrap')
-    robot_description_share = FindPackageShare('robot_description')
-    
-    # URDF file path
-    urdf_file = PathJoinSubstitution([
-        robot_description_share,
-        'pointfoot', 'urdf', 'pointfoot.urdf'
+    # Read URDF file content
+    urdf_file_path = PathJoinSubstitution([
+        FindPackageShare('sdk_wrap'),
+        'urdf', 'robot.urdf'
     ])
 
     # TRON1 SDK nodes
@@ -50,13 +35,7 @@ def generate_launch_description():
         output='screen'
     )
 
-    joint_state_node = Node(
-        package='sdk_wrap',
-        executable='joint_state_publisher',
-        name='joint_state_publisher',
-        output='screen'
-    )
-
+    # robot_command now handles both WebSocket control AND joint state publishing
     robot_command_node = Node(
         package='sdk_wrap',
         executable='robot_command',
@@ -71,12 +50,12 @@ def generate_launch_description():
         name='robot_state_publisher',
         output='screen',
         parameters=[{
-            'robot_description': urdf_file,
+            'robot_description': Command(['cat ', urdf_file_path]),
             'use_sim_time': False
         }]
     )
 
-    # Livox LiDAR launch
+    # Livox LiDAR
     livox_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             PathJoinSubstitution([
@@ -85,16 +64,93 @@ def generate_launch_description():
                 'msg_MID360_launch.py'
             ])
         ]),
-        condition=IfCondition(LaunchConfiguration('enable_livox'))
+    )
+
+    # Static transform: livox_frame relative to base_Link  
+    # Trying yaw=180° only to flip X direction
+    static_tf = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='static_tf_base_to_livox',
+        arguments=[
+            '0', '0', '0.2',          # x y z translation
+            '0', '0', '3.14159',      # roll=0 pitch=0 yaw=180°
+            'base_Link', 'livox_frame'
+        ]
+    )
+
+    
+    # Fast-LIO mapping launch
+    fast_lio_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([
+                FindPackageShare('fast_lio'),
+                'launch',
+                'mapping.launch.py'
+            ])
+        ]),
+        launch_arguments={'config_file': 'mid360.yaml'}.items()
+    )
+    
+    # QoS Converter: BEST_EFFORT -> RELIABLE
+    qos_converter = Node(
+        package='sdk_wrap',
+        executable='qos_converter_node',
+        name='qos_converter_node',
+        output='screen'
+    )
+
+    # PointCloud to LaserScan converter (now uses /cloud_in with RELIABLE QoS)
+    pointcloud_to_laserscan = Node(
+        package='pointcloud_to_laserscan',
+        executable='pointcloud_to_laserscan_node',
+        name='pointcloud_to_laserscan',
+        remappings=[
+            ('cloud_in', '/cloud_in'),      # Input: Converted point cloud (RELIABLE QoS)
+            ('scan', '/scan')               # Output: 2D laser scan
+        ],
+        parameters=[{
+            'target_frame': 'base_Link',  # Transform to base_Link for Nav2
+            'transform_tolerance': 0.5,
+            'min_height': -0.6,              # 1 meter below base_Link
+            'max_height': 0.3,               # 0.3 meters above base_Link
+            'angle_min': -3.14159,          # -180 degrees
+            'angle_max': 3.14159,           # +180 degrees
+            'angle_increment': 0.00873,      # ~
+            'scan_time': 0.1,               # Scan time for velocity calculations
+            'range_min': 0.1,               # Minimum range
+            'range_max': 100.0,             # Maximum range
+            'use_inf': True,                # Use infinity for max range
+            'inf_epsilon': 1.0,             # Epsilon for infinity comparison
+            'qos_overrides./scan.publisher.reliability': 'reliable',
+            'qos_overrides./scan.publisher.durability': 'volatile',
+            'qos_overrides./scan.publisher.history': 'keep_last',
+            'qos_overrides./scan.publisher.depth': 10
+        }]
+    )
+    
+    # Robot Localization EKF - fuses odom_raw + IMU -> filtered /odom + odom->base_Link TF
+    ekf_node = Node(
+        package='robot_localization',
+        executable='ekf_node',
+        name='ekf_filter_node',
+        output='screen',
+        parameters=[PathJoinSubstitution([
+            FindPackageShare('sdk_wrap'),
+            'config', 'ekf_params.yaml'
+        ])]
     )
 
     return LaunchDescription([
-        enable_livox_arg,
-        lidar_type_arg,
         imu_node,
         odom_node,
-        joint_state_node,
-        robot_command_node,
+        ekf_node,  # EKF for smooth filtered odometry
+        # joint_state_node,  # DISABLED: joint states now published by robot_command node
+        robot_command_node,  # Now publishes both commands and joint states
         robot_state_publisher,
-        livox_launch
+        livox_launch,
+        qos_converter,
+        pointcloud_to_laserscan,
+        static_tf
+        # fast_lio_launch
     ])

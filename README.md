@@ -5,19 +5,15 @@ Graphical representation of the connections involved
 ``` mermaid
 graph TD
 
-    subgraph "LAN Network"
-        Tron1["Tron 1"]
-        Jetson["Jetson"]
-        Tron1 --- Jetson
+    subgraph UGREEN["UGREEN"]
+        LAN_IN["LAN IN"]
+        LAN1_OUT["LAN1 OUT"]
+        LAN2_OUT["LAN2 OUT"]
     end
 
-    subgraph "Wi-Fi area42network"
-        Router["Router"]
-        Router --- Jetson
-        Router --- Laptop1["Laptop 1"]
-        Router --- Laptop2["Laptop 2"]
-        Router --- Laptop3["Laptop 3"]
-    end
+    Jetson ---|LAN| LAN_IN
+    LAN1_OUT ---|LAN| Laptop["Laptop"]
+    LAN2_OUT ---|LAN| LIDAR["LiDAR"]
 ```
 
 ## Laptop

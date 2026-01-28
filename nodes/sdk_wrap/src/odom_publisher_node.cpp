@@ -3,9 +3,12 @@
 #include <chrono>
 #include <atomic>
 #include <thread>
+#include <fstream>
 
 #include "rclcpp/rclcpp.hpp"
 #include "nav_msgs/msg/odometry.hpp"
+#include "tf2_ros/transform_broadcaster.h"
+#include "geometry_msgs/msg/transform_stamped.hpp"
 
 #include <websocketpp/client.hpp>
 #include <websocketpp/config/asio.hpp>
@@ -21,7 +24,17 @@ using websocketpp::connection_hdl;
 class OdomPublisherNode : public rclcpp::Node {
 public:
   OdomPublisherNode() : Node("odom_publisher"), accid_(""), connected_(false) {
-    publisher_ = this->create_publisher<nav_msgs::msg::Odometry>("/odom", rclcpp::SensorDataQoS());
+    // Publish raw odometry - robot_localization EKF will fuse with IMU and publish filtered /odom
+    publisher_ = this->create_publisher<nav_msgs::msg::Odometry>("/odom_raw", 
+      rclcpp::QoS(10).reliable().durability_volatile());
+    // No TF broadcaster - EKF will publish odom->base_Link transform
+
+    // Load robot IP from config file
+    std::string robot_ip = loadRobotIpFromConfig();
+    if (robot_ip.empty()) {
+      RCLCPP_ERROR(this->get_logger(), "Failed to load robot IP from config file");
+      return;
+    }
 
     // Initialize WebSocket client
     ws_client_.init_asio();
@@ -32,7 +45,8 @@ public:
     ws_client_.set_close_handler([this](connection_hdl hdl) { on_close(hdl); });
 
     // Connect to robot WebSocket server
-    std::string server_uri = "ws://10.192.1.2:5000";
+    robot_ip="10.192.1.2";
+    std::string server_uri = std::string("ws://") + robot_ip + ":5000";
     websocketpp::lib::error_code ec;
     auto con = ws_client_.get_connection(server_uri, ec);
 
@@ -64,6 +78,21 @@ public:
   }
 
 private:
+  std::string loadRobotIpFromConfig() {
+    try {
+      std::ifstream config_file("/root/limx_ws/src/livox_ros_driver2/config/MID360_config.json");
+      if (!config_file.is_open()) {
+        RCLCPP_WARN(this->get_logger(), "Could not open config file");
+        return "";
+      }
+      json config = json::parse(config_file);
+      return config["MID360"]["host_net_info"]["cmd_data_ip"].get<std::string>();
+    } catch (const std::exception &e) {
+      RCLCPP_ERROR(this->get_logger(), "Error parsing config file: %s", e.what());
+      return "";
+    }
+  }
+
   void on_open(connection_hdl hdl) {
     connected_ = true;
     current_hdl_ = hdl;
@@ -125,7 +154,7 @@ private:
     // Header
     msg.header.stamp = this->now();
     msg.header.frame_id = "odom";
-    msg.child_frame_id = "base_link";
+    msg.child_frame_id = "base_Link";
 
     // Parse pose orientation [x, y, z, w]
     if (odom_data.contains("pose_orientation") && odom_data["pose_orientation"].is_array()) {
@@ -160,14 +189,30 @@ private:
       msg.twist.twist.angular.z = ang[2].get<double>();
     }
 
-    // Set covariances to unknown
-    msg.pose.covariance[0] = -1.0;
-    msg.twist.covariance[0] = -1.0;
+    // Set VERY high covariances - wheel-legged odometry has severe drift
+    // SLAM must rely almost entirely on scan matching
+    msg.pose.covariance[0] = 2.0;    // x variance (m^2) - extremely high
+    msg.pose.covariance[7] = 2.0;    // y variance - extremely high
+    msg.pose.covariance[14] = 0.5;   // z variance
+    msg.pose.covariance[21] = 0.2;   // roll variance (rad^2)
+    msg.pose.covariance[28] = 0.2;   // pitch variance
+    msg.pose.covariance[35] = 1.0;   // yaw variance - extremely high
+    
+    // Twist covariance
+    msg.twist.covariance[0] = 0.1;    // vx variance
+    msg.twist.covariance[7] = 0.1;    // vy variance
+    msg.twist.covariance[14] = 0.1;   // vz variance
+    msg.twist.covariance[21] = 0.1;   // angular x variance
+    msg.twist.covariance[28] = 0.1;   // angular y variance
+    msg.twist.covariance[35] = 0.2;   // angular z variance
 
     publisher_->publish(msg);
+
+    // TF disabled - robot_localization EKF publishes odom->base_Link
   }
 
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr publisher_;
+  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
   client<websocketpp::config::asio> ws_client_;
   connection_hdl current_hdl_;
   std::thread ws_thread_;
