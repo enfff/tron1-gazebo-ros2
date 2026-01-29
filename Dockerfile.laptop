@@ -17,12 +17,10 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /root/limx_ws/src
-
 RUN git clone https://github.com/limxdynamics/limxsdk-lowlevel.git && \
-    git clone https://github.com/limxdynamics/robot-description.git
-
-# Clone and build Livox SDK2 (required for LiDAR driver)
-RUN git clone --branch jazzy https://github.com/tu-darmstadt-ros-pkg/Livox-SDK2 /Livox-SDK2
+    git clone https://github.com/limxdynamics/robot-description.git && \
+    git clone --branch jazzy https://github.com/tu-darmstadt-ros-pkg/Livox-SDK2 /Livox-SDK2 && \
+    git clone --branch jazzy https://github.com/tu-darmstadt-ros-pkg/livox_ros_driver2
 
 # Livox SDK2
 WORKDIR /Livox-SDK2
@@ -31,10 +29,6 @@ RUN /bin/bash -c "source /opt/ros/jazzy/setup.bash && \
     cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local && \
     make -j$(nproc) && \
     make install"
-
-# Livox ROS 2 driver
-WORKDIR /root/limx_ws/src
-RUN git clone --branch jazzy https://github.com/tu-darmstadt-ros-pkg/livox_ros_driver2
 
 # Build everything
 WORKDIR /root/limx_ws
@@ -52,19 +46,12 @@ exec "$@"' > /ros_entrypoint.sh && \
 RUN echo 'source /opt/ros/jazzy/setup.bash' >> /root/.bashrc && \
     echo 'source /root/limx_ws/install/setup.bash' >> /root/.bashrc
 
-
-# FAST_LIO
 WORKDIR /root/limx_ws
 RUN /bin/bash -c "source /opt/ros/jazzy/setup.bash && \
     source /root/limx_ws/install/setup.bash && \
-    apt update && \
-    cd src/ && \
-    git clone https://github.com/Ericsii/FAST_LIO.git --recursive && \
-    cd /root/limx_ws && \
     [ -f /etc/ros/rosdep/sources.list.d/20-default.list ] || rosdep init && \
     rosdep update && \
     rosdep install --from-paths src --ignore-src -y --skip-keys='livox_sdk2' && \
-    colcon build --symlink-install --packages-select fast_lio && \
     source install/setup.bash"
 
 ENTRYPOINT ["/ros_entrypoint.sh"]
