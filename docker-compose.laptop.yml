@@ -12,5 +12,6 @@ services:
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix
       - ./nodes:/root/limx_ws/src/nodes
+      - ./scripts:/root/limx_ws/src/scripts
       - /dev/dri:/dev/dri
     command: bash
