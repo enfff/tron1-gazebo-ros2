@@ -81,9 +81,9 @@ The lidar tf can be configured in this launch file
 
 Addresses vary with your network layout. For a reliable setup, configure your host (laptop or Jetson) with a LAN profile using:
 
-- IP address: `192.168.1.50`
+- IP address: `10.192.1.120`
 - Netmask: `255.255.255.0`
-- Default gateway: `192.168.1.50`
+- Default gateway: `10.192.1.2`
 
 On the ethernet switch¹, connect: 
 - Port 1: robot
@@ -99,8 +99,8 @@ This wiring guarantees proper communication between all devices.
 | Component | IP Address |
 |-:|:-|
 |TRON 1 (SDK)|10.192.1.2|
-|Host IP|192.168.1.50|
-|LiDAR|192.168.1.1XX|
+|Host IP|10.192.1.120|
+|LiDAR|10.192.1.121|
 
 Where XX are the last two digits of the lidar serial number 
 
