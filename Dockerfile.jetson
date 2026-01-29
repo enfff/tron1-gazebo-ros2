@@ -93,7 +93,10 @@ colcon build --symlink-install --packages-select=sdk_wrap --cmake-args -DCMAKE_B
 
 RUN /bin/bash -c "rosdep install --rosdistro jazzy --from-paths src --ignore-src -r -y"
 
-COPY ros_entrypoint.sh /ros_entrypoint.sh
+COPY config/ros_entrypoint.sh /ros_entrypoint.sh
+COPY config/MID360_config.json /root/limx_ws/src/livox_ros_driver2/config/MID360_config.json
+COPY config/msg_MID360_launch.py /root/limx_ws/src/livox_ros_driver2/launch/msg_MID360_launch.py
+
 RUN chmod +x /ros_entrypoint.sh
 
 ENTRYPOINT ["/ros_entrypoint.sh"]
