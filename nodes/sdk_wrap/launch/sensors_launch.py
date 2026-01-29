@@ -140,7 +140,16 @@ def generate_launch_description():
             'config', 'ekf_params.yaml'
         ])]
     )
-
+    zed_to_map_tf = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='static_tf_map_to_zed',
+        arguments=[
+            '2.433', '3.373', '0',
+            '0.0194', '-0.7069', '-0.7069', '0.0194',  # Added 90° rotation around X
+            'map', 'zed_frame'
+        ]
+    )
     return LaunchDescription([
         imu_node,
         odom_node,
@@ -151,6 +160,7 @@ def generate_launch_description():
         livox_launch,
         qos_converter,
         pointcloud_to_laserscan,
-        static_tf
+        static_tf,  # Added comma here
         # fast_lio_launch
+        zed_to_map_tf
     ])
