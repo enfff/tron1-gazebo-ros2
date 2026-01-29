@@ -1,16 +1,15 @@
 ARG ROS_DISTRO=jazzy
-ARG JETPACK=r36.4.0-cu128-24.04
 
-FROM dustynv/ros:jazzy-ros-base-r36.4.0-cu128-24.04
+FROM --platform=linux/arm64 ros:jazzy-ros-base
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ROBOT_TYPE=WF_TRON1A
 
-# The base is outdated with respect to the ROS keyring - refresh it
-RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /tmp/ros.key \
- && gpg --dearmor < /tmp/ros.key > /usr/share/keyrings/ros-archive-keyring.gpg \
- && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
- && rm /tmp/ros.key
+# # The base is outdated with respect to the ROS keyring - refresh it
+# RUN curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /tmp/ros.key \
+#  && gpg --dearmor < /tmp/ros.key > /usr/share/keyrings/ros-archive-keyring.gpg \
+#  && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | tee /etc/apt/sources.list.d/ros2.list > /dev/null \
+#  && rm /tmp/ros.key
 
 RUN apt-get update && apt-get install -y \
     libboost-all-dev \
@@ -29,17 +28,30 @@ RUN apt-get update && apt-get install -y \
     ros-jazzy-ament-cmake \
     ros-jazzy-slam-toolbox \
     ros-jazzy-nav2-bringup \
+    ros-jazzy-navigation2 \
+    ros-jazzy-xacro \
+    ros-jazzy-rmw-cyclonedds-cpp \
+    ros-jazzy-perception-pcl \
+    ros-jazzy-pointcloud-to-laserscan \
+    ros-dev-tools \
+    ros-jazzy-laser-proc \
+    python3-pip \
+    nano \
+    libasio-dev \
+    kmod \
+    iproute2 \
+    can-utils \
     && rm -rf /var/lib/apt/lists/*
 
 
 WORKDIR /root/limx_ws/src
-ENV DEBIAN_FRONTEND=noninteractive
 
 RUN git clone https://github.com/limxdynamics/limxsdk-lowlevel.git && \
-    git clone https://github.com/limxdynamics/robot-description.git
+    git clone https://github.com/limxdynamics/robot-description.git && \
+    git clone --branch jazzy https://github.com/tu-darmstadt-ros-pkg/Livox-SDK2 /Livox-SDK2 && \
+    git clone --branch jazzy https://github.com/tu-darmstadt-ros-pkg/livox_ros_driver2
 
 # Clone and build Livox SDK2 (required for LiDAR driver)
-RUN git clone --branch jazzy https://github.com/tu-darmstadt-ros-pkg/Livox-SDK2 /Livox-SDK2
 
 # Livox SDK2
 WORKDIR /Livox-SDK2
@@ -49,11 +61,14 @@ RUN /bin/bash -c "source /opt/ros/jazzy/setup.bash && \
     make -j$(nproc) && \
     make install"
 
+
+# RUN /bin/bash -c "
+#     rm -rf /usr/local/lib/liblivox_lidar_sdk_*
+#     rm -rf /usr/local/include/livox_lidar_*
+# "
+
 # Livox ROS 2 driver
 WORKDIR /root/limx_ws/src
-RUN git clone --branch jazzy https://github.com/tu-darmstadt-ros-pkg/livox_ros_driver2
-
-RUN apt-get update && apt-get install -y ros-jazzy-perception-pcl && rm -rf /var/lib/apt/lists/*
 
 RUN echo 'source /opt/ros/jazzy/setup.bash' >> /root/.bashrc && \
     echo 'source /root/limx_ws/install/setup.bash' >> /root/.bashrc && \
@@ -61,12 +76,9 @@ RUN echo 'source /opt/ros/jazzy/setup.bash' >> /root/.bashrc && \
 
 # Build everything
 WORKDIR /root/limx_ws
-RUN /bin/bash -c "source /opt/ros/jazzy/install/setup.bash && \
+RUN /bin/bash -c "source /opt/ros/jazzy/setup.bash && \
     export CMAKE_PREFIX_PATH=\"/usr/local:/opt/ros/jazzy:\$CMAKE_PREFIX_PATH\" && \
     colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release"
-
-COPY ros_entrypoint.sh /ros_entrypoint.sh
-RUN chmod +x /ros_entrypoint.sh
 
 # Copy and build sdk_wrap
 WORKDIR /root/limx_ws/src
@@ -74,12 +86,15 @@ COPY nodes/sdk_wrap sdk_wrap
 
 WORKDIR /root/limx_ws
 RUN /bin/bash -c "set -e && \
-source /opt/ros/jazzy/install/setup.bash && \
+source /opt/ros/jazzy/setup.bash && \
 source /root/limx_ws/install/setup.bash && \
 export CMAKE_PREFIX_PATH=\"/usr/local:/opt/ros/jazzy:\$CMAKE_PREFIX_PATH\" && \
 colcon build --symlink-install --packages-select=sdk_wrap --cmake-args -DCMAKE_BUILD_TYPE=Release"
 
 RUN /bin/bash -c "rosdep install --rosdistro jazzy --from-paths src --ignore-src -r -y"
+
+COPY ros_entrypoint.sh /ros_entrypoint.sh
+RUN chmod +x /ros_entrypoint.sh
 
 ENTRYPOINT ["/ros_entrypoint.sh"]
 CMD ["bash"]

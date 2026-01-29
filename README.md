@@ -42,6 +42,7 @@ On the Jetson:
 ```bash
 docker build -f Dockerfile.jetson -t struzzo:jetson .
 docker compose -f docker-compose.jetson.yml up -d
+docker start struzzo-jetson
 docker exec -it struzzo-jetson bash
 ```
 
