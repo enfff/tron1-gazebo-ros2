@@ -15,9 +15,10 @@ slam_toolbox:
     base_frame: base_Link  # Changed from base_footprint to base_Link
     scan_topic: /scan
     use_map_saver: true
-    mode: mapping #localization
-    #mode: localization
-    #map_file_name: map_area
+    mode: localization
+    map_file_name: map_saves/map_area_2
+    map_start_pose: [2.42, 1.06, 2.335]  # [x, y, theta] - starting pose on map  -- theta = 2 * atan2(z, w)
+
 
     debug_logging: false
     throttle_scans: 4  # Process every 4th scan for faster updates

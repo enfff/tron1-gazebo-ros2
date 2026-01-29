@@ -1,7 +1,7 @@
 ### EKF configuration for fusing odometry and IMU ###
 ekf_filter_node:
   ros__parameters:
-    frequency: 30.0  # 30Hz - slower but smoother output
+    frequency: 10.0  # 10Hz - low CPU load
     
     sensor_timeout: 0.2  # Increased tolerance
     two_d_mode: true  # 2D navigation
@@ -56,3 +56,4 @@ ekf_filter_node:
                                0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.02, 0.0,  0.0,
                                0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.02, 0.0,
                                0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.03]
+
