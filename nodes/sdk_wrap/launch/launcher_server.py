@@ -104,6 +104,38 @@ def notify_out_of_place_completed():
         return False
 
 # ============================================================================
+# Navigation to Goal Communication
+# ============================================================================
+def check_nav_goal_requested():
+    """Check if navigation to goal has been requested via iris server"""
+    try:
+        response = requests.get(f"{IRIS_SERVER_URL}navigation/goal/check", timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('requested', False), data.get('coordinates', None)
+    except requests.exceptions.RequestException:
+        pass
+    return False, None
+
+def notify_nav_goal_started():
+    """Notify iris server that navigation to goal has started"""
+    try:
+        response = requests.post(f"{IRIS_SERVER_URL}navigation/goal/start", timeout=5)
+        return response.status_code == 200
+    except requests.exceptions.RequestException as e:
+        log_error(f"Failed to notify nav goal start: {e}")
+        return False
+
+def notify_nav_goal_completed():
+    """Notify iris server that navigation to goal has completed"""
+    try:
+        response = requests.post(f"{IRIS_SERVER_URL}navigation/goal/complete", timeout=5)
+        return response.status_code == 200
+    except requests.exceptions.RequestException as e:
+        log_error(f"Failed to notify nav goal completion: {e}")
+        return False
+
+# ============================================================================
 # Docker Helper Functions
 # ============================================================================
 def dexec(cmd, background=False):
@@ -283,6 +315,47 @@ def run_out_of_place_routine():
     
     notify_out_of_place_completed()
 
+def run_navigate_to_goal(coordinates):
+    """Run the navigate to goal script with coordinates"""
+    x = coordinates.get('x', 0.0)
+    y = coordinates.get('y', 0.0)
+    z = coordinates.get('z', 0.0)
+    source_frame = coordinates.get('source_frame', 'zed_frame')
+    
+    log_info("Starting Navigation to Goal...")
+    log_info("=" * 50)
+    log_info(f"Target coordinates ({source_frame}): x={x:.3f}, y={y:.3f}, z={z:.3f}")
+    notify_nav_goal_started()
+    
+    # Run with live output streaming
+    cmd = f"python3 /root/limx_ws/src/scripts/navigate_to_goal.py --x {x} --y {y} --z {z} --source-frame {source_frame}"
+    full_cmd = f'docker exec {CONTAINER} bash -c "{ROS_SETUP} && {cmd}"'
+    
+    process = subprocess.Popen(
+        full_cmd, 
+        shell=True, 
+        stdout=subprocess.PIPE, 
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1
+    )
+    
+    # Stream output line by line
+    for line in process.stdout:
+        line = line.rstrip()
+        if line:
+            print(f"{Colors.GREEN}[NAV_GOAL]{Colors.NC} {line}")
+    
+    process.wait()
+    
+    log_info("=" * 50)
+    if process.returncode == 0:
+        log_info("Navigation to Goal completed successfully!")
+    else:
+        log_error(f"Navigation to Goal failed with code: {process.returncode}")
+    
+    notify_nav_goal_completed()
+
 def navigation_request_loop():
     """Main loop that polls for navigation requests"""
     log_info(f"Polling iris server at {IRIS_SERVER_URL} for navigation requests...")
@@ -290,9 +363,17 @@ def navigation_request_loop():
     while not state.should_stop:
         if state.is_ready:
             try:
+                # Check for out of place requests
                 if check_out_of_place_requested():
                     log_info("Out of place request detected!")
                     run_out_of_place_routine()
+                
+                # Check for navigation to goal requests
+                nav_requested, coordinates = check_nav_goal_requested()
+                if nav_requested and coordinates:
+                    log_info("Navigation to goal request detected!")
+                    run_navigate_to_goal(coordinates)
+                    
             except Exception as e:
                 log_error(f"Error checking navigation requests: {e}")
         
