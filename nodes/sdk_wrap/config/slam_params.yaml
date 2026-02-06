@@ -16,38 +16,38 @@ slam_toolbox:
     scan_topic: /scan
     use_map_saver: true
     mode: localization
-    map_file_name: map_saves/map_area_2
+    map_file_name: /root/limx_ws/src/map_saves/map_area_2
     map_start_pose: [2.42, 1.06, 2.335]  # [x, y, theta] - starting pose on map  -- theta = 2 * atan2(z, w)
 
 
     debug_logging: false
-    throttle_scans: 4  # Process every 4th scan for faster updates
-    transform_publish_period: 0.02  # 50Hz - publish map->odom transform frequently
-    map_update_interval: 5.0
+    throttle_scans: 1  # Process EVERY scan for localization robustness
+    transform_publish_period: 0.02  # 50Hz - continuous transform publishing
+    map_update_interval: 2.0  # Frequent updates for continuous publishing
     resolution: 0.05
     max_laser_range: 8.0  # Further reduced - only nearby reliable features
     min_laser_range: 0.3  # Increased from 0.2
-    minimum_time_interval: 0.05  # Very low - process scans as fast as possible
-    transform_timeout: 2.0  # Increased to 2.0 for more tolerance
+    minimum_time_interval: 0.0  # Accept scans at ANY rate (handles variable 5Hz input)
+    transform_timeout: 5.0  # High tolerance for variable timing
     tf_buffer_duration: 30.0
     stack_size_to_use: 40000000
-    enable_interactive_mode: true
+    enable_interactive_mode: false  # Disabled to reduce load
 
     # General Parameters
     use_scan_matching: true
     use_scan_barycenter: true
-    minimum_travel_distance: 0.05  # Very small - update very frequently
-    minimum_travel_heading: 0.05   # Very small - update on small rotations
-    scan_buffer_size: 15  # Small buffer (~1.5 seconds) - less memory, more responsive
+    minimum_travel_distance: 0.02  # Very small - update very frequently
+    minimum_travel_heading: 0.02   # Very small - update on tiny rotations
+    scan_buffer_size: 30  # Larger buffer for better matching
     scan_buffer_maximum_scan_distance: 8.0
-    link_match_minimum_response_fine: 0.4  # Slightly higher for quality
-    link_scan_maximum_distance: 2.0  # Only nearby scans for speed
+    link_match_minimum_response_fine: 0.1  # LOWERED from 0.4 - accept more matches in localization
+    link_scan_maximum_distance: 3.0  # Increased range for matching
     loop_search_maximum_distance: 3.0
     do_loop_closing: false  # DISABLED to prevent jumps during initial mapping
     loop_match_minimum_chain_size: 10
     loop_match_maximum_variance_coarse: 3.0
-    loop_match_minimum_response_coarse: 0.35
-    loop_match_minimum_response_fine: 0.45
+    loop_match_minimum_response_coarse: 0.1  # LOWERED for localization robustness
+    loop_match_minimum_response_fine: 0.1    # LOWERED for localization robustness
 
     # Correlation Parameters - Correlation Parameters
     correlation_search_space_dimension: 0.5  # Safe value
@@ -60,8 +60,8 @@ slam_toolbox:
     loop_search_space_smear_deviation: 0.03
 
     # Scan Matcher Parameters
-    distance_variance_penalty: 0.3     # Moderate - balance scan and odometry
-    angle_variance_penalty: 0.3        # Moderate - balance for speed    
+    distance_variance_penalty: 0.1     # LOWERED - trust scans more in localization
+    angle_variance_penalty: 0.1        # LOWERED - trust scans more in localization    
 
     fine_search_angle_offset: 0.00349     
     coarse_search_angle_offset: 0.349      # ±20° search for speed

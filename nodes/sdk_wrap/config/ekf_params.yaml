@@ -1,15 +1,17 @@
 ### EKF configuration for fusing odometry and IMU ###
 ekf_filter_node:
   ros__parameters:
-    frequency: 10.0  # 10Hz - low CPU load
+    frequency: 10.0  # Reduced to 10Hz - system can't handle higher
     
-    sensor_timeout: 0.2  # Increased tolerance
+    sensor_timeout: 1.0  # Generous timeout
     two_d_mode: true  # 2D navigation
     
     transform_time_offset: 0.0
     transform_timeout: 0.0
-    print_diagnostics: true
+    print_diagnostics: false  # Disabled to reduce CPU load
     debug: false
+    publish_tf: true
+    publish_acceleration: false  # Disabled to reduce load
     
     # Frame configuration
     map_frame: map
@@ -26,7 +28,7 @@ ekf_filter_node:
                    false, false, false]   # ax, ay, az
     odom0_differential: false
     odom0_relative: false
-    odom0_queue_size: 10
+    odom0_queue_size: 2  # Reduced for performance
     
     # IMU (orientation and angular velocity)
     imu0: /imu
@@ -34,11 +36,11 @@ ekf_filter_node:
                   false, false, true,    # roll, pitch, yaw - use yaw orientation
                   false, false, false,   # vx, vy, vz
                   false, false, true,    # vroll, vpitch, vyaw - use yaw rate
-                  true,  true,  true]    # ax, ay, az - use linear accelerations
+                  false, false, false]   # ax, ay, az - DISABLED to reduce load
     imu0_differential: false
     imu0_relative: false
-    imu0_queue_size: 10
-    imu0_remove_gravitational_acceleration: true
+    imu0_queue_size: 2  # Reduced for performance
+    imu0_remove_gravitational_acceleration: false
     
     # Process noise covariance (higher = smoother but slower response)
     process_noise_covariance: [0.1,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,
@@ -56,4 +58,3 @@ ekf_filter_node:
                                0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.02, 0.0,  0.0,
                                0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.02, 0.0,
                                0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.03]
-
